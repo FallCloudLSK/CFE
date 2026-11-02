@@ -1,0 +1,299 @@
+/* === 基本樣式：取自《CFE DeckEditor》V1.0 === */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap');
+       
+        :root {
+            --gray: #f8f8f8;
+            --green: #e8f5e8;
+            --blue: #e8f3f8;
+            --red: #f8e8e8;
+            --yellow: #f8f5e8;
+        }
+       
+        body {
+            font-family: 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 12px;
+            background: #f5f5f5;
+            color: #222;
+            line-height: 1.5;
+        }
+       
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+       
+        header {
+            background: linear-gradient(135deg, #1a73e8, #34a853);
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+       
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+       
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            width: 100%;
+            justify-content: flex-end;
+        }
+       
+        .code-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.25);
+            padding: 8px 16px;
+            border-radius: 9999px;
+            font-family: monospace;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            flex: 1;
+            min-width: 280px;
+        }
+       
+        .code-input {
+            flex: 1;
+            padding: 10px 16px;
+            font-family: monospace;
+            font-size: 18px;
+            border: none;
+            border-radius: 9999px;
+            background: white;
+            color: #222;
+            text-align: center;
+            min-width: 0;
+        }
+       
+        .btn {
+            background: #fff;
+            color: #1a73e8;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 9999px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(26,115,232,0.2);
+            white-space: nowrap;
+        }
+       
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(26,115,232,0.3);
+        }
+       
+        .reset-btn {
+            background: #f44336;
+            color: white;
+        }
+       
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 0 8px 8px;
+        }
+       
+        table {
+            width: 100%;
+            min-width: 680px;
+            border-collapse: collapse;
+            font-size: 17px;
+        }
+       
+        th, td {
+            padding: 12px 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+            position: relative;
+        }
+       
+        th {
+            background: #f1f1f1;
+            font-weight: 500;
+            font-size: 15px;
+        }
+       
+        .attr-header {
+            width: 80px;
+            font-weight: 700;
+            text-align: left;
+            padding-left: 20px;
+            font-size: 18px;
+        }
+       
+        .cell {
+            font-size: 28px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 58px;
+            user-select: none;
+        }
+       
+        .cell:hover {
+            background: #fffbe6;
+            transform: scale(1.05);
+        }
+       
+        .cell.gold { background: var(--gray); }
+        .cell.wood { background: var(--green); }
+        .cell.water { background: var(--blue); }
+        .cell.fire { background: var(--red); }
+        .cell.earth { background: var(--yellow); }
+       
+        .subtotal {
+            font-weight: 700;
+            background: #f9f9f9;
+        }
+       
+        .total-row td {
+            background: #1a73e8;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+        }
+       
+        .invalid {
+            background: #ffebee !important;
+            color: #d32f2f;
+        }
+       
+        .number-popup {
+            position: absolute;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+            padding: 10px 12px;
+            display: flex;
+            gap: 8px;
+            z-index: 300;
+            animation: popIn 0.2s ease;
+        }
+       
+        .number-btn {
+            width: 56px;
+            height: 56px;
+            font-size: 28px;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            background: #f0f0f0;
+            color: #222;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+       
+        .number-btn:hover {
+            background: #4caf50;
+            color: white;
+            transform: scale(1.1);
+        }
+       
+        .info {
+            padding: 16px 24px;
+            background: #f8f9fa;
+            font-size: 15px;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+       
+        .copyright {
+            text-align: center;
+            padding: 12px 24px 20px;
+            color: #888;
+            font-size: 14px;
+            border-top: 1px solid #eee;
+        }
+       
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+       
+        @media (max-width: 640px) {
+            body { padding: 8px; }
+            .container { border-radius: 12px; }
+            header { padding: 16px 18px; flex-direction: column; align-items: stretch; }
+            h1 { font-size: 22px; justify-content: center; }
+            .header-right { justify-content: center; }
+            .code-box { min-width: auto; flex: none; width: 100%; }
+            .code-input { font-size: 17px; }
+            table { font-size: 15px; min-width: 620px; }
+            .cell { font-size: 24px; min-width: 48px; padding: 10px 6px; }
+            th { padding: 10px 6px; font-size: 13px; }
+            .attr-header { width: 62px; font-size: 16px; padding-left: 12px; }
+            .number-btn { width: 48px; height: 48px; font-size: 24px; }
+        }
+
+/* === 提交／解鎖頁追加樣式 === */
+@keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.id-box { flex: 0 1 260px; min-width: 220px; letter-spacing: 0; font-family: inherit; font-size: 16px; }
+.id-box .code-input { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 17px; }
+.btn:disabled, .btn:disabled:hover { background: rgba(255,255,255,0.35); color: rgba(255,255,255,0.85); box-shadow: none; transform: none; cursor: not-allowed; }
+.btn.submit-btn:not(:disabled) { background: #fbbc04; color: #222; }
+.btn.blue { background: #1a73e8; color: #fff; }
+.btn.green { background: #34a853; color: #fff; }
+.btn.ghost { background: #f1f3f4; color: #333; box-shadow: none; }
+
+.panel { margin: 16px; border-radius: 14px; border: 2px dashed #f9ab00; background: #fff8e1; padding: 16px 18px; }
+.panel.done { border-style: solid; border-color: #34a853; background: #e6f4ea; }
+.panel h3 { margin: 0 0 10px; font-size: 17px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 8px 12px; align-items: center; }
+.kv .k { font-weight: 700; color: #555; }
+.kv .v { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 18px; font-weight: 700; background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 6px 12px; word-break: break-all; }
+.kv .v.key { border: 2px solid #f9ab00; color: #b06000; font-size: 20px; }
+.panel .note { font-size: 14px; color: #6d4c00; margin-top: 10px; }
+.panel .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.badge { font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 9999px; background: #fbbc04; color: #222; }
+.badge.ok { background: #34a853; color: #fff; }
+
+header.reveal { background: linear-gradient(135deg, #8e24aa, #d93025); }
+header.reveal .btn { color: #8e24aa; }
+.form { padding: 18px 24px 4px; display: grid; gap: 12px; }
+.form label { font-weight: 700; font-size: 15px; color: #444; display: block; margin-bottom: 4px; }
+.form input, .form textarea { width: 100%; box-sizing: border-box; padding: 10px 16px; font-size: 17px; border: 1px solid #ddd; border-radius: 9999px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.form textarea { border-radius: 14px; font-size: 14px; min-height: 120px; }
+.form .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.verdict { margin: 16px; border-radius: 14px; padding: 14px 18px; font-size: 16px; line-height: 1.7; }
+.verdict.ok { background: #e6f4ea; border: 2px solid #34a853; }
+.verdict.err { background: #fce8e6; border: 2px solid #d93025; }
+.verdict.warn { background: #fff8e1; border: 2px solid #f9ab00; }
+.verdict .big { font-size: 20px; font-weight: 700; }
+.cell.ro { cursor: default; }
+.cell.ro:hover { background: inherit; transform: none; }
+.cell.zero { color: #bbb; }
+.batch td, .batch th { font-size: 14px; padding: 6px 8px; text-align: left; }
+.batch { min-width: 0; }
+details.more { margin: 8px 24px 16px; }
+details.more summary { cursor: pointer; font-weight: 700; color: #555; }
+@media (max-width: 640px) {
+  .id-box { flex: none; width: 100%; min-width: auto; }
+  .kv { grid-template-columns: 1fr; gap: 2px; }
+  .kv .k { margin-top: 6px; }
+  .form { padding: 14px 16px 4px; }
+  details.more { margin: 8px 16px 16px; }
+}
