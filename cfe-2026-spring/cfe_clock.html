@@ -1,0 +1,421 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>對戰計時鐘</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-family: Arial, sans-serif;
+            background-color: #E8ECEF;
+            overflow: hidden;
+        }
+        .container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .player {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            user-select: none;
+        }
+        .player-top {
+            transform: rotate(180deg);
+        }
+        .timer-box {
+            width: 90%;
+            height: 80%;
+            border: 4px solid #4A4A4A;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #F5F5DC;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .timer-box.active {
+            border-color: #1E90FF;
+            background-color: #E6F0FA;
+            box-shadow: 0 0 20px rgba(30, 144, 255, 0.5);
+        }
+        .timer-box.overtime {
+            border-color: #FF4444;
+            background-color: #FFE6E6;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+        }
+        .time {
+            font-size: 15vw;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            color: #2F4F7F;
+        }
+        .milliseconds {
+            font-size: 6vw;
+            color: #4A4A4A;
+        }
+        .middle-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 10px 0;
+            background-color: #D9E2EC;
+        }
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid #2F4F7F;
+            background-color: #B3CDE0;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #2F4F7F;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        .control-btn:hover {
+            background-color: #A1B8D1;
+        }
+        .pause-btn {
+            border-color: #336699;
+            background-color: #6699CC;
+        }
+        .pause-btn:hover {
+            background-color: #557FA6;
+        }
+        .pause-btn.paused {
+            background-color: #4D85B3;
+            box-shadow: 0 0 10px rgba(51, 102, 153, 0.7);
+        }
+        .prompt {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(47, 79, 127, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 4vw;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s, padding 0.3s;
+        }
+        .prompt.active {
+            opacity: 1;
+            padding: 10px 20px;
+        }
+        .prompt:empty {
+            padding: 0;
+            opacity: 0;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #FFFFFF;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            transform: none;
+        }
+        .modal-btn {
+            margin: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .modal-btn.yes {
+            background-color: #28A745;
+            color: white;
+        }
+        .modal-btn.yes:hover {
+            background-color: #218838;
+        }
+        .modal-btn.no {
+            background-color: #DC3545;
+            color: white;
+        }
+        .modal-btn.no:hover {
+            background-color: #C82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="player player-top" id="player1">
+            <div class="timer-box" id="timer1" onclick="switchTurn(1)">
+                <div class="time" id="time1">12:00</div>
+                <div class="milliseconds" id="ms1">.00</div>
+                <div class="prompt" id="prompt1"></div>
+            </div>
+        </div>
+        <div class="middle-controls">
+            <button class="control-btn" onclick="showResetConfirm()">重置</button>
+            <button class="control-btn pause-btn" id="pauseBtn" onclick="togglePause()">暫停</button>
+            <button class="control-btn" onclick="showModeSwitch()">初賽</button>
+        </div>
+        <div class="player player-bottom" id="player2">
+            <div class="timer-box" id="timer2" onclick="switchTurn(2)">
+                <div class="time" id="time2">12:00</div>
+                <div class="milliseconds" id="ms2">.00</div>
+                <div class="prompt" id="prompt2"></div>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="modeModal">
+        <div class="modal-content">
+            <p>是否切換模式並重新開始？</p>
+            <button class="modal-btn yes" onclick="switchMode(true)">是</button>
+            <button class="modal-btn no" onclick="switchMode(false)">否</button>
+        </div>
+    </div>
+    <div class="modal" id="resetModal">
+        <div class="modal-content">
+            <p>是否確認重置比賽？</p>
+            <button class="modal-btn yes" onclick="resetGame(true)">是</button>
+            <button class="modal-btn no" onclick="resetGame(false)">否</button>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        let isPaused = false;
+        let activePlayer = 0;
+        let mode = 'standard'; // standard (初賽) or finals (複賽)
+        let time1 = 12 * 60 * 1000; // 12 minutes in ms
+        let time2 = 12 * 60 * 1000;
+        let isOvertime1 = false;
+        let isOvertime2 = false;
+        let lastUpdate = null;
+        let gameStarted = false;
+        let isGameStopped = false;
+
+        function formatTime(ms) {
+            if (ms <= 0) return "00:00.00";
+            let minutes = Math.floor(ms / 60000);
+            let seconds = Math.floor((ms % 60000) / 1000);
+            let centiseconds = Math.floor((ms % 1000) / 10);
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateDisplay() {
+            if (isGameStopped) return; // Prevent recursive calls during stop
+            document.getElementById('time1').textContent = formatTime(time1).slice(0, 5);
+            document.getElementById('ms1').textContent = formatTime(time1).slice(5);
+            document.getElementById('time2').textContent = formatTime(time2).slice(0, 5);
+            document.getElementById('ms2').textContent = formatTime(time2).slice(5);
+
+            const timer1 = document.getElementById('timer1');
+            const timer2 = document.getElementById('timer2');
+            timer1.classList.remove('active', 'overtime');
+            timer2.classList.remove('active', 'overtime');
+
+            if (activePlayer === 1) {
+                timer1.classList.add(isOvertime1 ? 'overtime' : 'active');
+            } else if (activePlayer === 2) {
+                timer2.classList.add(isOvertime2 ? 'overtime' : 'active');
+            }
+
+            const prompt1 = document.getElementById('prompt1');
+            const prompt2 = document.getElementById('prompt2');
+            if (!gameStarted) {
+                prompt1.textContent = "請後手玩家點選後開始計時";
+                prompt2.textContent = "請後手玩家點選後開始計時";
+                prompt1.classList.add('active');
+                prompt2.classList.add('active');
+            } else {
+                prompt1.textContent = "";
+                prompt2.textContent = "";
+                prompt1.classList.remove('active');
+                prompt2.classList.remove('active');
+            }
+
+            if (time1 <= 0 && isOvertime1) {
+                stopGame();
+                prompt1.textContent = "此方超時！";
+                prompt1.classList.add('active');
+                prompt2.textContent = "";
+                prompt2.classList.remove('active');
+            } else if (time2 <= 0 && isOvertime2) {
+                stopGame();
+                prompt1.textContent = "";
+                prompt1.classList.remove('active');
+                prompt2.textContent = "此方超時！";
+                prompt2.classList.add('active');
+            }
+
+            // Update pause button state
+            const pauseBtn = document.getElementById('pauseBtn');
+            if (isPaused) {
+                pauseBtn.classList.add('paused');
+            } else {
+                pauseBtn.classList.remove('paused');
+            }
+
+            // Update mode button text
+            document.getElementsByClassName('control-btn')[2].textContent = mode === 'standard' ? '初賽' : '複賽';
+        }
+
+        function updateTimer() {
+            if (!isRunning || isPaused || isGameStopped) return;
+            const now = Date.now();
+            const delta = lastUpdate ? now - lastUpdate : 0;
+            lastUpdate = now;
+
+            if (activePlayer === 1) {
+                time1 = Math.max(0, time1 - delta);
+                if (time1 <= 0 && !isOvertime1) {
+                    isOvertime1 = true;
+                    time1 = 40 * 1000;
+                }
+            } else if (activePlayer === 2) {
+                time2 = Math.max(0, time2 - delta);
+                if (time2 <= 0 && !isOvertime2) {
+                    isOvertime2 = true;
+                    time2 = 40 * 1000;
+                }
+            }
+            updateDisplay();
+            requestAnimationFrame(updateTimer);
+        }
+
+        function switchTurn(player) {
+            if (!gameStarted) {
+                activePlayer = player === 1 ? 2 : 1; // Start with opponent
+                gameStarted = true;
+                isRunning = true;
+                lastUpdate = Date.now();
+                requestAnimationFrame(updateTimer);
+            } else if (!isPaused && activePlayer === player) {
+                // Reset current player's time to 40 seconds if in overtime
+                if (player === 1 && isOvertime1) time1 = 40 * 1000;
+                if (player === 2 && isOvertime2) time2 = 40 * 1000;
+                activePlayer = player === 1 ? 2 : 1;
+            }
+            updateDisplay();
+        }
+
+        function togglePause() {
+            if (!gameStarted) return;
+            isPaused = !isPaused;
+            if (!isPaused) {
+                lastUpdate = Date.now();
+                requestAnimationFrame(updateTimer);
+            }
+            updateDisplay();
+        }
+
+        function showResetConfirm() {
+            if (!isPaused && gameStarted) togglePause(); // Pause if game is running
+            document.getElementById('resetModal').style.display = 'flex';
+        }
+
+        function resetGame(confirm) {
+            document.getElementById('resetModal').style.display = 'none';
+            if (confirm) {
+                isRunning = false;
+                isPaused = false;
+                activePlayer = 0;
+                gameStarted = false;
+                isOvertime1 = false;
+                isOvertime2 = false;
+                isGameStopped = false;
+                time1 = mode === 'standard' ? 12 * 60 * 1000 : 10 * 60 * 1000;
+                time2 = mode === 'standard' ? 12 * 60 * 1000 : 10 * 60 * 1000;
+                updateDisplay();
+            }
+        }
+
+        function stopGame() {
+            if (isGameStopped) return; // Prevent recursive calls
+            isGameStopped = true;
+            isRunning = false;
+            isPaused = false;
+            activePlayer = 0;
+            updateDisplay();
+        }
+
+        function showModeSwitch() {
+            if (!isPaused && gameStarted) togglePause();
+            document.getElementById('modeModal').style.display = 'flex';
+        }
+
+        function switchMode(confirm) {
+            document.getElementById('modeModal').style.display = 'none';
+            if (confirm) {
+                mode = mode === 'standard' ? 'finals' : 'standard';
+                resetGame(true);
+            }
+        }
+
+        updateDisplay();
+    </script>
+</body>
+</html>
