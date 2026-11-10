@@ -127,7 +127,7 @@ footer{text-align:center;color:#8aa0b6;font-size:12px;padding:8px 0 12px}
 .col h3 .who{font-size:13px;padding:1px 10px;border-radius:9999px;color:#fff}
 .prebtns{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
 .pb{display:flex;align-items:center;gap:8px;border:2px solid var(--line);background:#fff;border-radius:12px;padding:8px 10px;font-size:16px;font-weight:800;cursor:pointer;text-align:left;color:var(--ink)}
-.pb small{font-weight:500;color:var(--sub);font-size:12px;margin-left:auto;text-align:right}
+.pb small{flex:1;min-width:0;font-weight:500;color:var(--sub);font-size:12px;margin-left:auto;text-align:right}
 .pb.pouch{border-color:#c9b8f0;background:#f6f2ff}
 .pb.ab{border-color:#b9d5f1;background:#f2f8fe}
 .pb.sp{border-color:#bfe3c9;background:#f1fbf3}
@@ -288,7 +288,7 @@ footer{text-align:center;color:#8aa0b6;font-size:12px;padding:8px 0 12px}
       </div>
     </section>
   </div>
-  <footer>《CFE 2026 戰局記錄器》V1.1 by FallCloud &amp; Claude</footer>
+  <footer>《CFE 2026 戰局記錄器》V1.2 by FallCloud &amp; Claude</footer>
 </div>
 <input type="file" id="fileIn" accept=".json,.html,.htm" hidden>
 <div id="modalRoot"></div>
@@ -667,7 +667,7 @@ def({ id: '連環', mod: 'pouch', size: 3, cat: 'active', pats: [{ m: c => c.len
 
 /* ----- 黑暗微光 ----- */
 const DARK = [
-  { id: '暗黑光芒', spec: '金金火水', run: E => { if (E.immuneShadow()) return E.note('影遁：不受暗黑光芒影響'); E.lose(E.opp, 15, { formation: true }); E.status(E.opp, 'stun', 2); E.status(E.opp, 'nodraw', 2); } },
+  { id: '暗黑光芒', spec: '金金火水', run: E => { if (E.immuneShadow()) return E.note('影遁：不受暗黑光芒影響'); E.view(); E.lose(E.opp, 15, { formation: true }); E.status(E.opp, 'stun', 2); E.status(E.opp, 'nodraw', 2); } },
   { id: '暗黑氣壁', spec: '木木金火', pts: c => H.sum(c) * 6, run: (E, c, o) => E.buildShield(E.me, o.pts) },
   { id: '暗黑歸元', spec: '水水土木', pts: c => H.sum(c) * 6, run: (E, c, o) => E.heal(E.me, o.pts, { formation: true }) },
   { id: '暗黑震暴', spec: '火火水土', atk: 'P', pts: c => H.sum(c) * 6, run: (E, c, o) => E.attack(o.pts) },
@@ -834,7 +834,7 @@ const ABILITIES = [
   { id: '影切', inputs: ['card'], text: '捨棄一張手牌，上家扣除該牌等級×２生命' },
   { id: '冥思', inputs: ['card'], cardRule: 'l4', text: '捨棄一張４級以上牌，本回合抽牌＋１' },
   { id: '啟示', inputs: ['card'], cardRule: 'l4', text: '捨棄一張４級以上牌，抽三張選一張加入手牌' },
-  { id: '天陽罡', inputs: [], text: '展示木或火行牌，一輪內木、火行傷害對己減半' },
+  { id: '天陽罡', inputs: ['show'], cardRule: 'woodfire', text: '展示木或火行牌，一輪內木、火行傷害對己減半' },
   { id: '烈陽訣', inputs: ['card'], cardRule: 'woodfire', text: '一張木或火行牌本回合等級＋２（組合基礎陣法）' },
   { id: '舞陽訣', inputs: [], text: '本回合施展三張以上木行或火行攻擊時抽牌＋１' },
   { id: '青雲步', inputs: ['card'], cardRule: 'woodwater', text: '捨棄木或水，抽兩張，一張放回牌堆頂，其餘捨棄' },
@@ -854,7 +854,7 @@ const SPIRITS = {
   水: { gain: d => d.e === 2, skills: [{ id: '川流', cost: 1, inputs: ['card'] }, { id: '浩瀚', cost: 3 }] },
   火: { gain: d => d.e === 3, skills: [{ id: '螢光', cost: 1, inputs: ['card'] }, { id: '絢爛', cost: 3, inputs: ['card', 'level'] }] },
   土: { gain: d => d.e === 4, skills: [{ id: '石盾', cost: 2 }, { id: '岩壁', cost: 6 }] },
-  惡: { gain: d => d.l === 2, dark: true, skills: [{ id: '惡視', cost: 2, inputs: ['maxLevel'] }] },
+  惡: { gain: d => d.l === 2, dark: true, skills: [{ id: '惡視', cost: 2, inputs: ['view2'] }] },
   死: { gain: d => d.l === 4, dark: true, skills: [{ id: '死兆', cost: 4, inputs: ['cards4'] }] },
 };
 const SPIRIT_TEXT = {
@@ -1123,6 +1123,7 @@ function replay(m) {
       if (S.over && a.kind !== 'note' && a.kind !== 'adjust') ar.issues.push(iss('error', '遊戲已結束後仍有動作'));
       try { applyAction(S, m, mods, T, a, ar, i); } catch (e) { ar.issues.push(iss('error', '計算錯誤：' + e.message)); console.error(e); }
       checkOver(S, T, ar, i);
+      ar.hand = S.hand.slice();
     });
     if (turn.ended) {
       endTurn(S, m, mods, T, rec, turn, i);
@@ -1267,6 +1268,7 @@ const handlers = {
     let cost = c.l * 2;
     if (abOf(S, T, p, '尋道術')) cost = Math.ceil(cost / 2);
     ar.text = '棄牌回收（' + cs(c) + '）';
+    S.hand[p] += 1;
     loseHp(S, T, ar, p, cost, '棄牌回收', false, true);
   },
 
@@ -1317,6 +1319,8 @@ const handlers = {
         if (c) { ar.text += '（' + cs(c) + '）'; if (c.l < 4) ar.issues.push(iss('error', '啟示須捨棄４級以上的牌')); }
         break;
       case '天陽罡':
+        if (a.card) { ar.text += '（展示' + cs(c) + '）'; if (c.e !== 1 && c.e !== 3) ar.issues.push(iss('error', '天陽罡須展示木或火行牌')); }
+        else if (S.job[p] !== '氣宗') ar.issues.push(iss('warn', '天陽罡未記錄展示的牌'));
         S.statuses.push({ who: p, k: 'tianyang', left: 1, unit: 'round', src: '天陽罡' });
         break;
       case '烈陽訣':
@@ -1381,7 +1385,9 @@ const handlers = {
       case '石盾': S.statuses.push({ who: q, k: 'shidun', left: 1, unit: 'turn', src: '石盾' }); break;
       case '岩壁': buildShield(S, ar, p, 40); break;
       case '惡視':
-        if (a.maxLv) loseHp(S, T, ar, q, a.maxLv * 2, '戲鬧', false); else ar.notes.push('（戲鬧：未輸入檢視到的最高等級）');
+        if (a.viewed && a.viewed.length) ar.text += '（看到' + cardsText(a.viewed.map(card)) + '）';
+        { const mx = a.viewed && a.viewed.length ? Math.max(...a.viewed.map(k => card(k).l)) : a.maxLv;
+          if (mx) loseHp(S, T, ar, q, mx * 2, '戲鬧', false); else ar.issues.push(iss('warn', '戲鬧：未輸入檢視到的牌')); }
         break;
       case '死兆': {
         const cards4 = (a.cards || []).map(card);
@@ -1661,8 +1667,10 @@ function makeE(S, m, T, ar, o, fx, f, atkType) {
       [0, 1].forEach(w => { if (S.shield[w] > 0) { S.shield[w] = Math.max(0, S.shield[w] - 20); ar.notes.push(m.players[w] + '防護罩－20'); loseHp(S, T, ar, w, 20, f.id, true, false, fx); } });
     },
     view: () => {
+      const vw = o.choice && o.choice.viewed;
+      if (vw && vw.length) ar.notes.push('看到' + cardsText(vw.map(card)));
       if (S.spirit[p] && S.spirit[p].k === '惡' && !lishan(S, T, p)) {
-        const mx = o.choice && o.choice.viewMax;
+        const mx = vw && vw.length ? Math.max(...vw.map(k => card(k).l)) : o.choice && o.choice.viewMax;
         if (mx) loseHp(S, T, ar, q, mx * 2, '戲鬧', false); else ar.issues.push(iss('warn', '戲鬧：未輸入檢視到的最高等級'));
       }
     },
@@ -2386,11 +2394,7 @@ function renderBoard(m, rep, c) {
     // 手牌
     let hand = S.hand[w];
     let handTxt = '手牌 ' + hand;
-    if (w === p && c.rec.live && !S.over) {
-      const nd = ENGINE.has(S, w, 'nodraw') && !T.cicada || T.noDraw;
-      const n = nd ? 0 : Math.max(0, Math.min(2 + T.drawBonus, 5 - Math.max(0, hand)));
-      handTxt = '手牌 ' + hand + ' → 抽' + n + ' → ' + (Math.max(0, hand) + n);
-    }
+    if (w === p) handTxt = handFlow(c, w);
     chips += '<span class="ch hand' + (hand < 0 || hand > 5 ? ' bad' : '') + '">' + handTxt + '</span>';
     return '<div class="' + cls + '"><div class="top"><div class="nm">' + esc(m.players[w]) + (m.first === w ? ' <span style="font-size:12px;color:var(--sub)">先攻</span>' : '') + '</div><div class="hp">' + S.hp[w] + '<small>/' + S.maxHp + '</small></div></div>'
       + '<div class="bar"><i class="' + hpClass(S.hp[w], S.maxHp) + '" style="width:' + (S.hp[w] / S.maxHp * 100) + '%"></i></div><div class="chips">' + chips + '</div></div>';
@@ -2439,6 +2443,35 @@ function renderTimeline(m, rep) {
 }
 
 /* ---------- 操作區 ---------- */
+// 本回合手牌變化：回合開始 → 行動前效果 → 行動 → 抽牌 → 最終
+function handFlow(c, w) {
+  const rec = c.rec, S = c.S, T = c.T;
+  const sg = v => (v > 0 ? '+' : '−') + Math.abs(v);
+  const start = rec.before.hand[w];
+  let prev = start, pre = 0, act = 0, acted = false;
+  rec.acts.forEach(ar => {
+    if (!ar.hand) return;
+    const d = ar.hand[w] - prev; prev = ar.hand[w];
+    if (['formation', 'cover', 'job', 'pass'].includes(ar.a.kind)) acted = true;
+    if (ar.a.kind === 'discard') return;
+    if (acted) act += d; else pre += d;
+  });
+  const parts = ['開始 ' + start];
+  if (pre) parts.push('行動前 ' + sg(pre));
+  if (act || acted) parts.push('行動 ' + (act ? sg(act) : '±0'));
+  const cur = prev;
+  const discarded = rec.acts.some(ar => ar.a.kind === 'discard' && !ar.a.none);
+  if (!rec.live) {
+    const N = rec.drawN || 0;
+    parts.push(N ? '抽 +' + (N + 1) + (discarded ? '、棄 −1' : '') : '不抽牌');
+    return '手牌 ' + parts.join(' → ') + ' → <b>' + rec.handEnd + '</b>';
+  }
+  if (S.over) return '手牌 ' + parts.join(' → ') + ' → <b>' + cur + '</b>';
+  const nd = ENGINE.has(S, w, 'nodraw') && !T.cicada || T.noDraw;
+  const n = nd ? 0 : Math.max(0, Math.min(2 + T.drawBonus, 5 - Math.max(0, cur)));
+  parts.push(n ? '抽 +' + (n + 1) + '、棄 −1' : '不抽牌');
+  return '手牌 ' + parts.join(' → ') + ' → <b>' + (Math.max(0, cur) + n) + '</b>' + (editTurn == null ? '<small style="opacity:.7">（預計）</small>' : '');
+}
 function renderOps(m, c) {
   const S = c.S, T = c.T, p = c.p;
   const w = $('opsWho'); w.textContent = m.players[p]; w.style.background = p === 0 ? 'var(--L)' : 'var(--R)';
@@ -2554,6 +2587,14 @@ function renderCands(m, c) {
 }
 function catName(f) { return f.cat === 'attack' ? (f.atk === 'P' ? '物理攻擊' : f.atk === 'S' ? '特殊攻擊' : f.atk === 'choice' ? '攻擊' : EL[f.atk] + '行攻擊') : f.cat === 'active' ? '主動術式' : '被動術式'; }
 
+// 檢視對方手牌：依對方手牌數（與效果可看張數）列出空牌框
+async function viewFlow(c, name, max) {
+  const oh = Math.max(0, Math.min(5, c.S.hand[1 - c.p]));
+  const n = Math.min(oh, max);
+  if (!n) return [];
+  const ugly = c.S.spirit[c.p] && c.S.spirit[c.p].k === '惡' && !ENGINE.has(c.S, c.p, 'lishan');
+  return pickCards({ title: name + '：看到對方哪些手牌？', sub: '對方手牌 ' + oh + ' 張' + (max < oh ? '，可看 ' + n + ' 張' : '') + (ugly ? '。戲鬧會依最高等級自動扣血' : ''), n, min: 1, skip: '不知道' });
+}
 async function onFormation(r) {
   const c = workCtx();
   const a = { kind: 'formation', form: r.f.id, cards: sel.slice(), pi: r.pi, via: r.notes.join(',') };
@@ -2564,10 +2605,11 @@ async function onFormation(r) {
     const ch = r.f.choice(r.cards, X);
     if (ch) { const v = await pickOption({ title: ch.title, options: ch.options, row: ch.options.length <= 6 }); if (v == null) return; choice[ch.key] = v; }
   }
-  const VIEW = ['光芒', '混沌', '萬鳴', '鏡鳴', '聖風', '北靈陣‧玄甲', '中靈陣‧黃鱗'];
-  if (VIEW.includes(r.f.id) && c.S.spirit[c.p] && c.S.spirit[c.p].k === '惡') {
-    const v = await pickOption({ title: '戲鬧：檢視到的手牌最高等級？', row: true, options: [1, 2, 3, 4, 5].map(v => ({ v, label: v + '級' })), skip: '不知道' });
-    if (v) choice.viewMax = v;
+  const VIEW = ['光芒', '暗黑光芒', '混沌', '萬鳴', '鏡鳴', '聖風', '北靈陣‧玄甲', '中靈陣‧黃鱗'];
+  if (VIEW.includes(r.f.id)) {
+    const v = await viewFlow(c, r.f.id, 5);
+    if (v === null) return;
+    if (v.length) choice.viewed = v;
   }
   if (r.f.id === '晴風萬里' && choice.keep != null && choice.keep < 5) {
     const n = 5 - choice.keep;
@@ -2610,6 +2652,13 @@ async function onPre(k, id) {
       if (inp === 'discard2') { const cc = await pickCards({ title: id + '：捨棄的兩張牌（可略過）', n: 2, skip: true }); if (cc === null) return; if (cc.length) a.cards = cc; }
       if (inp === 'virtual') { const v = await pickCards({ title: id + '：產生哪一張牌？', n: 1 }); if (!v) return; a.virtual = v[0]; }
       if (inp === 'card') { const v = await pickCards({ title: id + '：' + cardPrompt(def), n: 1, skip: id === '影切' ? false : true }); if (v === null) return; if (v.length) a.card = v[0]; }
+      if (inp === 'show' && c.S.job[c.p] !== '氣宗') {
+        while (true) {
+          const v = await pickCards({ title: id + '：展示哪一張木或火行牌？', n: 1, skip: '不知道' }); if (v === null) return;
+          if (v.length && ![1, 3].includes(card(v[0]).e)) { toast('只能展示木或火行牌'); continue; }
+          if (v.length) a.card = v[0]; break;
+        }
+      }
       if (inp === 'qingfeng') {
         const v = await pickCards({ title: '晴風：展示的牌堆頂是哪一張？', n: 1, skip: '不知道' }); if (v === null) return;
         if (v.length) { const f = await pickOption({ title: '晴風：' + v[0] + ' 要怎麼處理？', row: true, options: [{ v: 'back', label: '放回牌堆頂' }, { v: 'discard', label: '捨棄' }] }); if (!f) return; a.card = v[0]; a.fate = f; }
@@ -2624,7 +2673,7 @@ async function onPre(k, id) {
     for (const inp of sk.inputs || []) {
       if (inp === 'card') { const v = await pickCards({ title: id + '：指定哪一張牌？', n: 1, skip: id === '川流' }); if (v === null) return; if (v.length) a.card = v[0]; }
       if (inp === 'level') { const v = await pickOption({ title: '絢爛：視為幾級？', row: true, options: [1, 2, 3, 4, 5].map(v => ({ v, label: v + '級' })) }); if (!v) return; a.level = v; }
-      if (inp === 'maxLevel') { const v = await pickOption({ title: '戲鬧：檢視到的最高等級？', row: true, options: [1, 2, 3, 4, 5].map(v => ({ v, label: v + '級' })), skip: '不知道' }); if (v) a.maxLv = v; }
+      if (inp === 'view2') { const v = await viewFlow(c, id, 2); if (v === null) return; if (v.length) a.viewed = v; }
       if (inp === 'cards4') { const v = await pickCards({ title: '死兆：捨棄的牌（最多四張）', n: 4, min: 1 }); if (!v) return; a.cards = v; }
     }
     return addAction(a);
