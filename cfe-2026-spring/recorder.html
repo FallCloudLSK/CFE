@@ -288,7 +288,7 @@ footer{text-align:center;color:#8aa0b6;font-size:12px;padding:8px 0 12px}
       </div>
     </section>
   </div>
-  <footer>《CFE 2026 戰局記錄器》V1.3 by FallCloud &amp; Claude</footer>
+  <footer>《CFE 2026 戰局記錄器》V1.4 by FallCloud &amp; Claude</footer>
 </div>
 <input type="file" id="fileIn" accept=".json,.html,.htm" hidden>
 <div id="modalRoot"></div>
@@ -1097,7 +1097,7 @@ function initState(m) {
   const hp = m.settings.hp;
   const pouch = m.settings.mods.includes('pouch');
   return {
-    hp: [hp, hp], maxHp: hp, shield: [0, 0], job: [null, null], spirit: [null, null], pouch: [pouch, pouch],
+    hp: [hp, hp], maxHp: hp, shield: [0, 0], job: [null, null], spirit: [null, null], pouch: [pouch, pouch], pouchFrom: [null, null],
     hand: m.first === 0 ? [4, 5] : [5, 4], star: [null, null], starHist: [[], []], env: null, totem: [null, null],
     statuses: [], lastForm: [null, null], lastDiscard: [null, null], covered: [null, null],
     uses: [{}, {}], delayed: [], over: null, spiritSeq: 0,
@@ -1231,7 +1231,7 @@ const handlers = {
     else if (f === 'spirit') S.spirit[who] = v ? { k: v, p: a.power || 2, id: ++S.spiritSeq } : null;
     else if (f === 'star') S.star[who] = v === '' || v == null ? null : +v;
     else if (f === 'env') S.env = v === '' || v == null ? null : +v;
-    else if (f === 'pouch') S.pouch[who] = !!v;
+    else if (f === 'pouch') { S.pouch[who] = !!v; S.pouchFrom[who] = null; }
     else if (f === 'totem') S.totem[who] = v === '' || v == null ? null : +v;
     else if (f === 'status') {
       if (a.mode === 'remove') S.statuses = S.statuses.filter(s => !(s.who === who && s.k === v));
@@ -1277,7 +1277,7 @@ const handlers = {
     if (T.pouchUsed) ar.issues.push(iss('error', '本回合已觸發過錦囊'));
     T.pouchUsed = true;
     if (T.actionDone) ar.issues.push(iss('error', '錦囊須於行動前觸發'));
-    S.pouch[p] = false;
+    S.pouch[p] = false; S.pouchFrom[p] = null;
     resolveStrategy(S, m, T, ar, a, '');
   },
 
@@ -1688,9 +1688,8 @@ function makeE(S, m, T, ar, o, fx, f, atkType) {
     setTotem: e => { S.totem[p] = e; ar.notes.push('獲得' + TOTEMS.find(t => t.e === e).name); },
     metamorph: c => metamorph(S, m, T, ar, o, fx, c),
     chain: ch => {
-      if (!ch.pouchCard) { ar.issues.push(iss('warn', '連環未登錄覆蓋為錦囊的牌')); }
-      else ar.notes.push('覆蓋錦囊');
-      S.pouch[p] = true;
+      ar.notes.push(ch.pouchCard ? '覆蓋錦囊（' + ch.pouchCard + '）' : '覆蓋錦囊');
+      S.pouch[p] = true; S.pouchFrom[p] = T.i;
       if (ch.trigCard && ch.strat) {
         const pc = card(ch.pouchCard || ch.trigCard), tc = card(ch.trigCard);
         if (ch.pouchCard && (pc.e === tc.e || pc.l === tc.l)) ar.issues.push(iss('error', '連環選擇的兩張牌須不同行、不同級'));
@@ -2502,9 +2501,12 @@ function renderOps(m, c) {
   $('acts').innerHTML = acts.length ? acts.map((ar, i) => {
     const lv = ar.issues.some(x => x.level === 'error') ? 'error' : ar.issues.some(x => x.level === 'warn') ? 'warn' : '';
     return '<li class="' + lv + '"><b>' + esc(ar.text) + '</b>' + (ar.notes.length ? '<div class="nt">' + esc(ar.notes.join('；')) + '</div>' : '')
-      + ar.issues.map(x => '<div class="iss ' + (x.level === 'warn' ? 'w' : '') + '">⚠ ' + esc(x.msg) + '</div>').join('') + '<button class="x" data-i="' + i + '" title="刪除">✕</button></li>';
+      + ar.issues.map(x => '<div class="iss ' + (x.level === 'warn' ? 'w' : '') + '">⚠ ' + esc(x.msg) + '</div>').join('')
+      + (ar.a.kind === 'formation' && ar.a.form === '連環' && !(ar.a.choice && ar.a.choice.pouchCard) ? '<button class="btn sm soft bfp" style="margin-top:4px">補登錦囊牌</button>' : '')
+      + '<button class="x" data-i="' + i + '" title="刪除">✕</button></li>';
   }).join('') : '<li style="border-style:dashed;color:#a3b3c3">尚無動作</li>';
   $('acts').querySelectorAll('.x').forEach(b => b.onclick = e => { e.stopPropagation(); delAction(+b.dataset.i); });
+  $('acts').querySelectorAll('.bfp').forEach(b => b.onclick = e => { e.stopPropagation(); backfillPouch(workIdx()); });
   renderGrid();
   renderTray();
   renderCands(m, c);
@@ -2658,6 +2660,7 @@ async function onPre(k, id) {
     if (!cd) return;
     const a = await strategyFlow(c, cd[0]);
     if (!a) return;
+    fillChainPouch(c.S.pouchFrom && c.S.pouchFrom[c.p], cd[0]);
     return addAction(Object.assign({ kind: 'pouch', card: cd[0] }, a));
   }
   if (k === 'ability') {
@@ -2723,8 +2726,24 @@ async function strategyFlow(c, cd) {
   if (sid === '牽羊') { const v = await pickCards({ title: '牽羊：從棄牌堆放回的牌（可略過）', n: 2, skip: true }); if (v === null) return null; if (v.length) a.cards = v; }
   return a;
 }
+// 連環覆蓋的錦囊是秘密：觸發或事後補登時，回填到覆蓋的那一回合
+function chainAction(ti) {
+  const t = ti != null && cur().turns[ti];
+  return t ? t.actions.find(a => a.kind === 'formation' && a.form === '連環') : null;
+}
+function fillChainPouch(ti, cd) {
+  const a = chainAction(ti);
+  if (!a) return;
+  a.choice = a.choice || {};
+  if (a.choice.pouchCard !== cd) { a.choice.pouchCard = cd; toast('已回填到第 ' + (ti + 1) + ' 回合的連環'); }
+}
+async function backfillPouch(ti) {
+  const v = await pickCards({ title: '第 ' + (ti + 1) + ' 回合連環覆蓋的錦囊是哪一張？', n: 1, skip: '仍不知道' });
+  if (!v || !v.length) return false;
+  snap(); fillChainPouch(ti, v[0]); commit(); return true;
+}
 async function chainFlow(c) {
-  const pc = await pickCards({ title: '連環：覆蓋為錦囊的牌（可略過）', n: 1, skip: true });
+  const pc = await pickCards({ title: '連環：覆蓋為錦囊的牌', sub: '錦囊是秘密，看不到就略過，之後觸發或對局結束時再補登', n: 1, skip: '略過（秘密）' });
   if (pc === null) return null;
   const tc = await pickCards({ title: '連環：觸發秘計的牌（可略過）', n: 1, skip: true });
   if (tc === null) return null;
@@ -2795,7 +2814,20 @@ $('bEnd').onclick = async () => {
   else toast('對局結束：' + REPORT.resultText(m, rep));
   sel = [];
   commit();
+  if (rep.final.over) await remindPouches(m);
 };
+async function remindPouches(m) {
+  const rep = ENGINE.replay(m);
+  for (const w of [0, 1]) {
+    const ti = rep.final.pouch[w] ? rep.final.pouchFrom[w] : null;
+    const a = chainAction(ti);
+    if (!a || (a.choice && a.choice.pouchCard)) continue;
+    const ok = await confirm2('補登錦囊？', m.players[w] + ' 在第 ' + (ti + 1) + ' 回合用連環覆蓋的錦囊還沒記錄，要現在回到該回合補登嗎？');
+    if (!ok) continue;
+    editTurn = ti; sel = []; render();
+    await backfillPouch(ti);
+  }
+}
 
 async function adjustDialog() {
   const c = workCtx();
