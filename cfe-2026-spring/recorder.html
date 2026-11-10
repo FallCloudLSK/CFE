@@ -288,7 +288,7 @@ footer{text-align:center;color:#8aa0b6;font-size:12px;padding:8px 0 12px}
       </div>
     </section>
   </div>
-  <footer>《CFE 2026 戰局記錄器》V1.2 by FallCloud &amp; Claude</footer>
+  <footer>《CFE 2026 戰局記錄器》V1.3 by FallCloud &amp; Claude</footer>
 </div>
 <input type="file" id="fileIn" accept=".json,.html,.htm" hidden>
 <div id="modalRoot"></div>
@@ -671,7 +671,7 @@ const DARK = [
   { id: '暗黑氣壁', spec: '木木金火', pts: c => H.sum(c) * 6, run: (E, c, o) => E.buildShield(E.me, o.pts) },
   { id: '暗黑歸元', spec: '水水土木', pts: c => H.sum(c) * 6, run: (E, c, o) => E.heal(E.me, o.pts, { formation: true }) },
   { id: '暗黑震暴', spec: '火火水土', atk: 'P', pts: c => H.sum(c) * 6, run: (E, c, o) => E.attack(o.pts) },
-  { id: '暗黑混沌', spec: '土土木金', run: E => { if (E.immuneShadow()) return E.note('影遁：不受暗黑混沌影響'); E.lose(E.opp, 15, { formation: true }); E.handDelta(E.opp, -2, '隨機放回牌堆'); } },
+  { id: '暗黑混沌', spec: '土土木金', run: E => { if (E.immuneShadow()) return E.note('影遁：不受暗黑混沌影響'); E.view(); E.lose(E.opp, 15, { formation: true }); E.handDelta(E.opp, -2, '隨機放回牌堆'); } },
 ];
 DARK.forEach(d => def({ id: d.id, mod: 'dark', size: 4, cat: d.atk ? 'attack' : 'active', atk: d.atk, dark: true,
   pats: [{ m: c => H.exact(c, d.spec) && H.sum(c) <= 10, need: 'form' }], pts: d.pts, run: d.run }));
@@ -1268,7 +1268,6 @@ const handlers = {
     let cost = c.l * 2;
     if (abOf(S, T, p, '尋道術')) cost = Math.ceil(cost / 2);
     ar.text = '棄牌回收（' + cs(c) + '）';
-    S.hand[p] += 1;
     loseHp(S, T, ar, p, cost, '棄牌回收', false, true);
   },
 
@@ -1669,6 +1668,12 @@ function makeE(S, m, T, ar, o, fx, f, atkType) {
     view: () => {
       const vw = o.choice && o.choice.viewed;
       if (vw && vw.length) ar.notes.push('看到' + cardsText(vw.map(card)));
+      const tk = o.choice && o.choice.taken;
+      if (tk && tk.length) {
+        const verb = { '混沌': '放回牌堆', '暗黑混沌': '放回牌堆', '中靈陣‧黃鱗': '拿走', '聖風': '拿走', '鏡鳴': '捨棄', '萬鳴': '捨棄' }[f.id] || '選了';
+        ar.notes.push(verb + cardsText(tk.map(card)));
+        if (vw && vw.length) { const pool = vw.slice(); if (!tk.every(k => { const i = pool.indexOf(k); if (i < 0) return false; pool.splice(i, 1); return true; })) ar.issues.push(iss('warn', '選的牌不在看到的牌之中')); }
+      }
       if (S.spirit[p] && S.spirit[p].k === '惡' && !lishan(S, T, p)) {
         const mx = vw && vw.length ? Math.max(...vw.map(k => card(k).l)) : o.choice && o.choice.viewMax;
         if (mx) loseHp(S, T, ar, q, mx * 2, '戲鬧', false); else ar.issues.push(iss('warn', '戲鬧：未輸入檢視到的最高等級'));
@@ -2605,11 +2610,20 @@ async function onFormation(r) {
     const ch = r.f.choice(r.cards, X);
     if (ch) { const v = await pickOption({ title: ch.title, options: ch.options, row: ch.options.length <= 6 }); if (v == null) return; choice[ch.key] = v; }
   }
-  const VIEW = ['光芒', '暗黑光芒', '混沌', '萬鳴', '鏡鳴', '聖風', '北靈陣‧玄甲', '中靈陣‧黃鱗'];
+  const VIEW = ['光芒', '暗黑光芒', '混沌', '暗黑混沌', '萬鳴', '鏡鳴', '聖風', '北靈陣‧玄甲', '中靈陣‧黃鱗'];
   if (VIEW.includes(r.f.id)) {
     const v = await viewFlow(c, r.f.id, 5);
     if (v === null) return;
     if (v.length) choice.viewed = v;
+    const TAKE = { '混沌': [2, '放回牌堆'], '暗黑混沌': [2, '放回牌堆'], '中靈陣‧黃鱗': [1, '拿走'], '聖風': [1, '拿走'], '鏡鳴': [1, '捨棄'], '萬鳴': [1, '捨棄'] }[r.f.id];
+    const oh = Math.max(0, c.S.hand[1 - c.p]);
+    if (TAKE && oh) {
+      const n = Math.min(TAKE[0], oh, v.length || 5);
+      const t = v.length ? await pickFromList({ title: r.f.id + '：' + TAKE[1] + '了哪 ' + n + ' 張？', list: v, n })
+        : await pickCards({ title: r.f.id + '：' + TAKE[1] + '了哪 ' + n + ' 張？', n, min: n, skip: '不知道' });
+      if (t === null) return;
+      if (t.length) choice.taken = t;
+    }
   }
   if (r.f.id === '晴風萬里' && choice.keep != null && choice.keep < 5) {
     const n = 5 - choice.keep;
@@ -2872,6 +2886,18 @@ function pickCards({ title, sub, n, min, skip }) {
     closer = v => body.closest('.md')._close(v);
     p.then(res);
   });
+}
+// 從指定的牌（例如看到的手牌）中選 n 張
+function pickFromList({ title, list, n }) {
+  const on = list.map(() => false);
+  const body = document.createElement('div'); body.className = 'slots'; body.style.marginTop = '0';
+  const draw = () => {
+    body.innerHTML = list.map((k, i) => '<button class="cd' + (on[i] ? ' on' : '') + '" data-i="' + i + '" style="width:62px;height:93px"><img src="' + CARD_IMG[k] + '" alt="' + k + '">' + (on[i] ? '<span class="cnt">✓</span>' : '') + '</button>').join('');
+    body.querySelectorAll('.cd').forEach(b => b.onclick = () => { const i = +b.dataset.i; if (!on[i] && on.filter(Boolean).length >= n) { if (n === 1) on.fill(false); else return toast('最多 ' + n + ' 張'); } on[i] = !on[i]; draw(); });
+  };
+  draw();
+  return modal({ title, sub: '點選看到的牌', body, keepOpen: v => v === undefined, buttons: [{ v: null, label: '取消', cls: 'ghost' }, { v: () => [], label: '不知道', cls: 'soft' },
+    { v: () => { const r = list.filter((k, i) => on[i]); return r.length === n ? r : (toast('請選 ' + n + ' 張'), undefined); }, label: '確定', cls: '' }] });
 }
 function confirm2(title, msg) { return modal({ title, body: '<div style="font-size:16px">' + esc(msg) + '</div>', buttons: [{ v: false, label: '取消', cls: 'ghost' }, { v: true, label: '確定', cls: '' }] }); }
 function prompt2(title, ph) {
