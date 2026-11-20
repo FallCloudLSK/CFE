@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026春季盃 牌組解鎖驗證</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <header class="reveal">
+    <h1 id="title">🔓 2026春季盃 牌組解鎖驗證</h1>
+  </header>
+
+  <div class="form">
+    <div>
+      <label for="pid">參賽ID</label>
+      <input id="pid" type="text" autocomplete="off" placeholder="例：FC-001">
+    </div>
+    <div>
+      <label for="sub">提交碼（以主辦方登錄紀錄為準）</label>
+      <input id="sub" type="text" autocomplete="off" placeholder="S26-XXXXX-XXXXX-…">
+    </div>
+    <div>
+      <label for="key">解鎖金鑰（由選手提供；只檢查格式時留空）</label>
+      <input id="key" type="text" autocomplete="off" placeholder="XXXXX-XXXXX-XXXXX-XXXXX">
+    </div>
+    <div class="actions">
+      <button class="btn blue" id="revBtn">🔓 解鎖並驗證</button>
+      <button class="btn ghost" id="fmtBtn">只檢查提交碼格式</button>
+      <button class="btn reset-btn" id="clrBtn">清除</button>
+    </div>
+  </div>
+
+  <div id="verdict"></div>
+
+  <div class="table-wrapper" id="tableWrap" hidden>
+    <table>
+      <thead>
+        <tr>
+          <th class="attr-header">屬性</th>
+          <th>1級</th><th>2級</th><th>3級</th><th>4級</th><th>5級</th>
+          <th>屬性<br>張數</th><th>屬性<br>等級總和</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+      <tfoot><tr class="total-row" id="totalRow"></tr></tfoot>
+    </table>
+  </div>
+
+  <details class="more">
+    <summary>📋 批次檢查登錄格式（主辦方用）</summary>
+    <div class="form" style="padding-left:0;padding-right:0">
+      <div>
+        <label for="batchIn">每行一筆「參賽ID 提交碼」（可直接從試算表複製兩欄貼上）</label>
+        <textarea id="batchIn" placeholder="FC-001	S26-XXXXX-…&#10;FC-002	S26-XXXXX-…"></textarea>
+      </div>
+      <div class="actions"><button class="btn blue" id="batchBtn">檢查全部</button></div>
+      <div class="table-wrapper" style="padding:0"><table class="batch" id="batchOut"></table></div>
+    </div>
+  </details>
+
+  <div class="info">
+    <div>
+      📌 <strong>使用方式：</strong><br>
+      登錄時：輸入參賽ID與提交碼，按「只檢查提交碼格式」，確認沒有抄錯<br>
+      四強驗牌：由選手輸入解鎖金鑰，按「解鎖並驗證」，依下方牌表核對實體牌組
+    </div>
+    <div style="text-align:right;">
+      ✅ 總張數必須 <strong>剛好 60</strong><br>
+      ✅ 總等級必須 <strong>≤ 170</strong>
+    </div>
+  </div>
+  <div class="copyright">《CFE 2026 牌組提交程式》V1.0 by FallCloud &amp; Claude</div>
+</div>
+
+<script src="cfe-commit.js"></script>
+<script>
+  const C = window.CFECommit;
+  const attrNames = ['金', '木', '水', '火', '土'];
+  const attrColors = ['gold', 'wood', 'water', 'fire', 'earth'];
+  const attrBg = ['#f8f8f8', '#e8f5e8', '#e8f3f8', '#f8e8e8', '#f8f5e8'];
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function setVerdict(type, html) { $('verdict').innerHTML = `<div class="verdict ${type}">${html}</div>`; }
+
+  function renderDeck(counts) {
+    let body = '';
+    const col = [0,0,0,0,0]; let tc = 0, tl = 0;
+    for (let a = 0; a < 5; a++) {
+      let c = 0, lv = 0;
+      body += `<tr><td class="attr-header ${attrColors[a]}" style="background:${attrBg[a]};font-weight:700;font-size:19px">${attrNames[a]}</td>`;
+      for (let l = 0; l < 5; l++) {
+        const n = counts[a][l];
+        c += n; lv += n * (l + 1); col[l] += n;
+        body += `<td class="cell ro ${attrColors[a]}${n === 0 ? ' zero' : ''}">${n}</td>`;
+      }
+      tc += c; tl += lv;
+      body += `<td class="subtotal">${c}</td><td class="subtotal">${lv}</td></tr>`;
+    }
+    $('tableBody').innerHTML = body;
+    $('totalRow').innerHTML = `<td style="text-align:left; padding-left:20px;">全牌組總計</td>` +
+      col.map(x => `<td>${x}</td>`).join('') +
+      `<td style="font-size:22px" class="${tc !== 60 ? 'invalid' : ''}">${tc}</td>` +
+      `<td style="font-size:22px" class="${tl > 170 ? 'invalid' : ''}">${tl}</td>`;
+    $('tableWrap').hidden = false;
+  }
+
+  async function checkFormat() {
+    $('tableWrap').hidden = true;
+    const r = await C.checkFormat($('pid').value, $('sub').value);
+    if (r.ok) setVerdict('ok',
+      `<span class="big">✅ 提交碼格式正確</span><br>參賽ID：<b>${esc(r.id)}</b><br>` +
+      `標準提交碼：<span class="mono">${esc(r.canonical)}</span><br>` +
+      `<small>此檢查只確認提交碼沒有抄錯、且與參賽ID相符；不會也無法得知牌組內容。</small>`);
+    else setVerdict('err', `<span class="big">❌ ${esc(r.error)}</span>`);
+  }
+
+  async function doReveal() {
+    if (!$('key').value.trim()) return checkFormat();
+    $('tableWrap').hidden = true;
+    const r = await C.reveal($('pid').value, $('sub').value, $('key').value);
+    if (!r.ok) { setVerdict('err', `<span class="big">❌ ${esc(r.error)}</span>`); return; }
+    setVerdict(r.legal ? 'ok' : 'warn',
+      (r.legal ? '<span class="big">✅ 驗證通過：此牌組即為選手提交的牌組，且符合規定</span>'
+               : '<span class="big">⚠️ 牌組與提交相符，但不符合規定，請依賽規處理</span>') +
+      `<br>參賽ID：<b>${esc(r.id)}</b>　牌組代碼：<b class="mono">${esc(r.deckCode)}</b>　共 ${r.cards} 張・總等級 ${r.level}`);
+    renderDeck(r.counts);
+    $('verdict').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function batchCheck() {
+    const lines = $('batchIn').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    let ok = 0, h = '<thead><tr><th>#</th><th>參賽ID</th><th>結果</th></tr></thead><tbody>';
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/^(.*?)[\t,，\s]+(S26-[0-9A-Za-z\-\s]+)$/i);
+      let res;
+      if (!m) res = { ok: false, error: '無法辨識，需為「參賽ID 提交碼」' };
+      else res = await C.checkFormat(m[1], m[2]);
+      if (res.ok) ok++;
+      h += `<tr><td>${i + 1}</td><td>${esc(m ? C.normalizeId(m[1]) : lines[i])}</td>` +
+           `<td class="${res.ok ? 'ok' : 'err'}" style="color:${res.ok ? '#188038' : '#d93025'}">${res.ok ? '✅ 正確' : '❌ ' + esc(res.error)}</td></tr>`;
+    }
+    h += `</tbody><tfoot><tr><td colspan="3"><b>共 ${lines.length} 筆，正確 ${ok} 筆，錯誤 ${lines.length - ok} 筆</b></td></tr></tfoot>`;
+    $('batchOut').innerHTML = h;
+  }
+
+  $('revBtn').onclick = doReveal;
+  $('fmtBtn').onclick = checkFormat;
+  $('batchBtn').onclick = batchCheck;
+  $('clrBtn').onclick = () => {
+    ['pid', 'sub', 'key'].forEach(id => $(id).value = '');
+    $('verdict').innerHTML = ''; $('tableWrap').hidden = true;
+  };
+  ['pid', 'sub', 'key'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') doReveal(); }));
+</script>
+</body>
+</html>
