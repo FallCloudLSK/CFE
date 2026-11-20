@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>五行戰鬥牌牌組編輯器</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+       
+        :root {
+            --gray: #f8f8f8;
+            --green: #e8f5e8;
+            --blue: #e8f3f8;
+            --red: #f8e8e8;
+            --yellow: #f8f5e8;
+        }
+       
+        body {
+            font-family: 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 12px;
+            background: #f5f5f5;
+            color: #222;
+            line-height: 1.5;
+        }
+       
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+       
+        header {
+            background: linear-gradient(135deg, #1a73e8, #34a853);
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+       
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+       
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            width: 100%;
+            justify-content: flex-end;
+        }
+       
+        .code-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.25);
+            padding: 8px 16px;
+            border-radius: 9999px;
+            font-family: monospace;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            flex: 1;
+            min-width: 280px;
+        }
+       
+        .code-input {
+            flex: 1;
+            padding: 10px 16px;
+            font-family: monospace;
+            font-size: 18px;
+            border: none;
+            border-radius: 9999px;
+            background: white;
+            color: #222;
+            text-align: center;
+            min-width: 0;
+        }
+       
+        .btn {
+            background: #fff;
+            color: #1a73e8;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 9999px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(26,115,232,0.2);
+            white-space: nowrap;
+        }
+       
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(26,115,232,0.3);
+        }
+       
+        .reset-btn {
+            background: #f44336;
+            color: white;
+        }
+       
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 0 8px 8px;
+        }
+       
+        table {
+            width: 100%;
+            min-width: 680px;
+            border-collapse: collapse;
+            font-size: 17px;
+        }
+       
+        th, td {
+            padding: 12px 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+            position: relative;
+        }
+       
+        th {
+            background: #f1f1f1;
+            font-weight: 500;
+            font-size: 15px;
+        }
+       
+        .attr-header {
+            width: 80px;
+            font-weight: 700;
+            text-align: left;
+            padding-left: 20px;
+            font-size: 18px;
+        }
+       
+        .cell {
+            font-size: 28px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 58px;
+            user-select: none;
+        }
+       
+        .cell:hover {
+            background: #fffbe6;
+            transform: scale(1.05);
+        }
+       
+        .cell.gold { background: var(--gray); }
+        .cell.wood { background: var(--green); }
+        .cell.water { background: var(--blue); }
+        .cell.fire { background: var(--red); }
+        .cell.earth { background: var(--yellow); }
+       
+        .subtotal {
+            font-weight: 700;
+            background: #f9f9f9;
+        }
+       
+        .total-row td {
+            background: #1a73e8;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+        }
+       
+        .invalid {
+            background: #ffebee !important;
+            color: #d32f2f;
+        }
+       
+        .number-popup {
+            position: absolute;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+            padding: 10px 12px;
+            display: flex;
+            gap: 8px;
+            z-index: 300;
+            animation: popIn 0.2s ease;
+        }
+       
+        .number-btn {
+            width: 56px;
+            height: 56px;
+            font-size: 28px;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            background: #f0f0f0;
+            color: #222;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+       
+        .number-btn:hover {
+            background: #4caf50;
+            color: white;
+            transform: scale(1.1);
+        }
+       
+        .info {
+            padding: 16px 24px;
+            background: #f8f9fa;
+            font-size: 15px;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+       
+        .copyright {
+            text-align: center;
+            padding: 12px 24px 20px;
+            color: #888;
+            font-size: 14px;
+            border-top: 1px solid #eee;
+        }
+       
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+       
+        @media (max-width: 640px) {
+            body { padding: 8px; }
+            .container { border-radius: 12px; }
+            header { padding: 16px 18px; flex-direction: column; align-items: stretch; }
+            h1 { font-size: 22px; justify-content: center; }
+            .header-right { justify-content: center; }
+            .code-box { min-width: auto; flex: none; width: 100%; }
+            .code-input { font-size: 17px; }
+            table { font-size: 15px; min-width: 620px; }
+            .cell { font-size: 24px; min-width: 48px; padding: 10px 6px; }
+            th { padding: 10px 6px; font-size: 13px; }
+            .attr-header { width: 62px; font-size: 16px; padding-left: 12px; }
+            .number-btn { width: 48px; height: 48px; font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 id="title">🌳 五行戰鬥牌牌組編輯器</h1>
+            <div class="header-right">
+                <div class="code-box">
+                    代碼：
+                    <input id="codeInput" class="code-input" type="text" maxlength="50" placeholder="輸入代碼 或 明文牌組 (例: 44433 40002 ...)">
+                    <button onclick="importCode()" class="btn">匯入</button>
+                </div>
+                <button onclick="generateCode()" class="btn">產出代碼</button>
+                <button onclick="exportExcel()" class="btn">匯出表格</button>
+                <button onclick="resetDeck()" class="btn reset-btn">清空牌組</button>
+            </div>
+        </header>
+        <div class="table-wrapper">
+            <table id="deckTable">
+                <thead>
+                    <tr>
+                        <th class="attr-header">屬性</th>
+                        <th>1級</th>
+                        <th>2級</th>
+                        <th>3級</th>
+                        <th>4級</th>
+                        <th>5級</th>
+                        <th>屬性<br>張數</th>
+                        <th>屬性<br>等級總和</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td style="text-align:left; padding-left:20px;">全牌組總計</td>
+                        <td id="totalLv1">0</td>
+                        <td id="totalLv2">0</td>
+                        <td id="totalLv3">0</td>
+                        <td id="totalLv4">0</td>
+                        <td id="totalLv5">0</td>
+                        <td id="totalCards" style="font-size:22px;">0</td>
+                        <td id="totalLevel" style="font-size:22px;">0</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <div class="info">
+            <div>
+                📌 <strong>操作方式：</strong><br>
+                點擊任意格子 → 正下方跳出數字按鈕（0~4 或 0~3）<br>
+                直接點選即可設定張數 • 點其他地方自動關閉<br>
+                <span style="color:#1a73e8;">匯入支援：代碼 或 明文牌組（如 25碼數字：44433 40002 44433 40023 40023）</span><br>
+                <span style="color:#1a73e8;">空白、/、換行等分隔皆可 • 手機版請左右滑動表格</span>
+            </div>
+            <div style="text-align:right;">
+                ✅ 總張數必須 <strong>剛好 60</strong><br>
+                ✅ 總等級必須 <strong>≤ 170</strong><br>
+                <span id="status" style="font-weight:700;"></span>
+            </div>
+        </div>
+        <div class="copyright">
+            《CFE DeckEditor》V1.0 by FallCloud & Grok
+        </div>
+    </div>
+
+<script>
+    // === 五行元素符號（金=🪨，土=⛰️）===
+    const fiveElements = ["🪨", "🌳", "💧", "🔥", "⛰️"];
+    function setRandomTitleEmoji() {
+        const randomEmoji = fiveElements[Math.floor(Math.random() * fiveElements.length)];
+        document.getElementById('title').innerHTML = `${randomEmoji} 五行戰鬥牌牌組編輯器`;
+    }
+
+    let counts = Array(5).fill().map(() => Array(5).fill(0));
+    const attrNames = ['金', '木', '水', '火', '土'];
+    const attrColors = ['gold', 'wood', 'water', 'fire', 'earth'];
+    const attrBg = ['#f8f8f8', '#e8f5e8', '#e8f3f8', '#f8e8e8', '#f8f5e8'];
+    const bases = [5,5,5,4,4, 5,5,5,4,4, 5,5,5,4,4, 5,5,5,4,4, 5,5,5,4,4];
+    const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+    function showModal(title, message, type = 'info', confirmText = '確定', cancelText = null, onConfirm = null) {
+        const old = document.getElementById('customModal');
+        if (old) old.remove();
+        const modal = document.createElement('div');
+        modal.id = 'customModal';
+        modal.style.cssText = `position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 2000; animation: fadeInModal 0.2s ease;`;
+        const box = document.createElement('div');
+        box.style.cssText = `background: white; width: 92%; max-width: 400px; border-radius: 20px; box-shadow: 0 15px 50px rgba(0,0,0,0.4); overflow: hidden;`;
+        box.innerHTML = `
+            <div style="padding: 28px 24px 20px; text-align:center;">
+                <div style="font-size:52px; margin-bottom:16px;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</div>
+                <h3 style="margin:0 0 16px; font-size:21px; color:#222;">${title}</h3>
+                <p style="margin:0; color:#555; line-height:1.6; font-size:16px;">${message}</p>
+            </div>
+            <div style="background:#f8f9fa; padding:18px; display:flex; gap:12px; justify-content:center;">
+                ${cancelText ? `<button id="modalCancel" style="flex:1; padding:14px; border:none; border-radius:9999px; background:#ccc; font-weight:600; font-size:16px; cursor:pointer;">${cancelText}</button>` : ''}
+                <button id="modalConfirm" style="flex:1; padding:14px; border:none; border-radius:9999px; background:${type==='error' ? '#d32f2f' : '#1a73e8'}; color:white; font-weight:600; font-size:16px; cursor:pointer;">${confirmText}</button>
+            </div>
+        `;
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+        document.getElementById('modalConfirm').onclick = () => { modal.remove(); if (onConfirm) onConfirm(); };
+        const cancelBtn = document.getElementById('modalCancel');
+        if (cancelBtn) cancelBtn.onclick = () => modal.remove();
+    }
+
+    function calculateTotals() {
+        let totalCards = 0, totalLevel = 0;
+        let colTotals = [0,0,0,0,0];
+        for (let a = 0; a < 5; a++) {
+            let attrCards = 0, attrLevel = 0;
+            for (let l = 0; l < 5; l++) {
+                const num = counts[a][l];
+                attrCards += num;
+                attrLevel += (l + 1) * num;
+                colTotals[l] += num;
+            }
+            totalCards += attrCards;
+            totalLevel += attrLevel;
+            document.getElementById(`attrCards${a}`).textContent = attrCards;
+            document.getElementById(`attrLevel${a}`).textContent = attrLevel;
+        }
+        for (let i = 0; i < 5; i++) {
+            document.getElementById(`totalLv${i+1}`).textContent = colTotals[i];
+        }
+        document.getElementById('totalCards').textContent = totalCards;
+        document.getElementById('totalLevel').textContent = totalLevel;
+
+        const valid = (totalCards === 60 && totalLevel <= 170);
+        const status = document.getElementById('status');
+        if (valid) {
+            status.innerHTML = '✅ <span style="color:#4caf50">合法牌組</span>';
+            document.getElementById('totalCards').classList.remove('invalid');
+            document.getElementById('totalLevel').classList.remove('invalid');
+        } else {
+            status.innerHTML = '⚠️ <span style="color:#f44336">不合法</span>';
+            if (totalCards !== 60) document.getElementById('totalCards').classList.add('invalid');
+            if (totalLevel > 170) document.getElementById('totalLevel').classList.add('invalid');
+        }
+        return valid;
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        for (let a = 0; a < 5; a++) {
+            const row = document.createElement('tr');
+            const attrCell = document.createElement('td');
+            attrCell.className = `attr-header ${attrColors[a]}`;
+            attrCell.style.backgroundColor = attrBg[a];
+            attrCell.style.fontWeight = '700';
+            attrCell.style.fontSize = '19px';
+            attrCell.textContent = attrNames[a];
+            row.appendChild(attrCell);
+
+            for (let l = 0; l < 5; l++) {
+                const cell = document.createElement('td');
+                cell.className = `cell ${attrColors[a]}`;
+                cell.dataset.attr = a;
+                cell.dataset.level = l;
+                cell.textContent = counts[a][l];
+                cell.addEventListener('click', function(e) {
+                    e.stopImmediatePropagation();
+                    showNumberPopup(this);
+                });
+                row.appendChild(cell);
+            }
+
+            const cardsTd = document.createElement('td');
+            cardsTd.className = 'subtotal';
+            cardsTd.id = `attrCards${a}`;
+            cardsTd.textContent = '0';
+            row.appendChild(cardsTd);
+
+            const levelTd = document.createElement('td');
+            levelTd.className = 'subtotal';
+            levelTd.id = `attrLevel${a}`;
+            levelTd.textContent = '0';
+            row.appendChild(levelTd);
+
+            tbody.appendChild(row);
+        }
+        calculateTotals();
+    }
+
+    function showNumberPopup(cell) {
+        hideNumberPopup();
+        const attr = parseInt(cell.dataset.attr);
+        const level = parseInt(cell.dataset.level);
+        const max = (level < 3) ? 4 : 3;
+        const rect = cell.getBoundingClientRect();
+        const popup = document.createElement('div');
+        popup.className = 'number-popup';
+        popup.id = 'numberPopup';
+        const leftPos = rect.left + window.scrollX + (rect.width / 2) - (max === 4 ? 160 : 130);
+        popup.style.left = Math.max(20, leftPos) + 'px';
+        popup.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+
+        for (let i = 0; i <= max; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'number-btn';
+            btn.textContent = i;
+            btn.onclick = (e) => {
+                e.stopImmediatePropagation();
+                counts[attr][level] = i;
+                cell.textContent = i;
+                calculateTotals();
+                hideNumberPopup();
+            };
+            popup.appendChild(btn);
+        }
+        document.body.appendChild(popup);
+
+        setTimeout(() => {
+            document.addEventListener('click', hideOnOutsideClick, { once: true });
+        }, 100);
+    }
+
+    function hideNumberPopup() {
+        const p = document.getElementById('numberPopup');
+        if (p) p.remove();
+    }
+
+    function hideOnOutsideClick(e) {
+        if (document.getElementById('numberPopup') &&
+            !e.target.closest('.number-popup') &&
+            !e.target.classList.contains('cell')) {
+            hideNumberPopup();
+        }
+    }
+
+    function encodeDeck() {
+        let index = 0n;
+        let pos = 0;
+        for (let a = 0; a < 5; a++) {
+            for (let l = 0; l < 5; l++) {
+                index = index * BigInt(bases[pos]) + BigInt(counts[a][l]);
+                pos++;
+            }
+        }
+        if (index === 0n) return '0000000000';
+        let code = '';
+        let n = index;
+        while (n > 0n) {
+            code = alphabet[Number(n % 62n)] + code;
+            n = n / 62n;
+        }
+        return code.padStart(10, '0');
+    }
+
+    function decodeDeck(code) {
+        if (code.length !== 10) return false;
+        let index = 0n;
+        for (let char of code) {
+            const val = alphabet.indexOf(char);
+            if (val === -1) return false;
+            index = index * 62n + BigInt(val);
+        }
+
+        const newCounts = Array(5).fill().map(() => Array(5).fill(0));
+        let temp = index;
+        for (let i = 24; i >= 0; i--) {
+            const base = bases[i];
+            const val = Number(temp % BigInt(base));
+            const attr = Math.floor(i / 5);
+            const level = i % 5;
+            newCounts[attr][level] = val;
+            temp = temp / BigInt(base);
+        }
+
+        let totalC = 0, totalL = 0;
+        for (let a = 0; a < 5; a++) {
+            for (let l = 0; l < 5; l++) {
+                const n = newCounts[a][l];
+                totalC += n;
+                totalL += (l + 1) * n;
+            }
+        }
+        if (totalC !== 60 || totalL > 170) return false;
+
+        counts = newCounts;
+        return true;
+    }
+
+    function parsePlainDeck(str) {
+        const digits = str.replace(/\D/g, '');
+        if (digits.length !== 25) return false;
+
+        const newCounts = Array(5).fill().map(() => Array(5).fill(0));
+
+        for (let i = 0; i < 25; i++) {
+            const val = parseInt(digits[i]);
+            const attr = Math.floor(i / 5);
+            const level = i % 5;
+            const max = (level < 3) ? 4 : 3;
+
+            if (val < 0 || val > max) return false;
+            newCounts[attr][level] = val;
+        }
+
+        let totalC = 0, totalL = 0;
+        for (let a = 0; a < 5; a++) {
+            for (let l = 0; l < 5; l++) {
+                const n = newCounts[a][l];
+                totalC += n;
+                totalL += (l + 1) * n;
+            }
+        }
+        if (totalC !== 60 || totalL > 170) return false;
+
+        counts = newCounts;
+        return true;
+    }
+
+    function generateCode() {
+        const isValid = calculateTotals();
+        if (!isValid) {
+            showModal('❌ 無法產出代碼', '牌組不合法！<br>請確認：<br>• 總張數必須剛好 60 張<br>• 總等級必須 ≤ 170', 'error');
+            return;
+        }
+
+        const code = encodeDeck();
+        document.getElementById('codeInput').value = code;
+        navigator.clipboard.writeText(code).then(() => {
+            showModal('✅ 代碼已複製', `牌組代碼 <strong>${code}</strong><br>已成功複製到剪貼簿！`, 'success');
+        }).catch(() => {
+            showModal('複製失敗', '請手動長按或選取代碼進行複製', 'error');
+        });
+    }
+
+    function importCode() {
+        let input = document.getElementById('codeInput').value.trim();
+        if (input === '') {
+            showModal('❌ 輸入空白', '請輸入代碼 或 明文牌組構成', 'error');
+            return;
+        }
+
+        let success = false;
+
+        if (input.length === 10) {
+            if (decodeDeck(input)) success = true;
+        }
+
+        if (!success) {
+            if (parsePlainDeck(input)) success = true;
+        }
+
+        if (success) {
+            renderTable();
+            showModal('✅ 匯入成功', '牌組已正確載入！', 'success');
+        } else {
+            showModal('❌ 匯入失敗', '此輸入無效或牌組不合法<br>（請輸入正確的代碼 或 25碼數字的明文牌組）', 'error');
+        }
+    }
+
+    function resetDeck() {
+        showModal(
+            '⚠️ 確認清空牌組？',
+            '所有卡片張數將歸零，且無法復原。<br>確定要繼續嗎？',
+            'warning',
+            '確定清空',
+            '取消',
+            () => {
+                counts = Array(5).fill().map(() => Array(5).fill(0));
+                renderTable();
+                document.getElementById('codeInput').value = '';
+                showModal('✅ 已清空', '牌組已全部歸零', 'success');
+            }
+        );
+    }
+
+    // === 匯出表格：以含底色與文字色的 HTML 表格複製到剪貼簿（可直接貼到 Excel / Google Sheets）===
+    // 顏色取自 牌組格式.xlsx：每個屬性列的標題欄（A、H、I）與等級欄（B~F）底色
+    const sheetStyle = [
+        { head: '#D9D9D9', cells: '#F2F2F2' },  // 金
+        { head: '#66FF66', cells: '#99FF99' },  // 木
+        { head: '#3399FF', cells: '#99CCFF' },  // 水
+        { head: '#FF3300', cells: '#FF7F61' },  // 火
+        { head: '#EFD621', cells: '#FFFA97' },  // 土
+    ];
+    const sheetFont = "font-family:'新細明體',PMingLiU,Arial,sans-serif;font-size:12pt;";
+
+    function buildSheetCells() {
+        // 回傳 { html, text }：html 為含樣式的表格，text 為 Tab 分隔的純文字（貼到不支援樣式時的備援）
+        const hdrStyle = `${sheetFont}text-align:center;color:#000000;`;
+        const lines = [];
+        const htmlRows = [];
+
+        // 第 1 列：表頭
+        const headers = ['一', '二', '三', '四', '五'];
+        let r1 = `<td style="${hdrStyle}"></td>` + headers.map(h => `<td style="${hdrStyle}">${h}</td>`).join('')
+            + `<td style="${hdrStyle}"></td><td style="${hdrStyle}">張數</td><td style="${hdrStyle}">等級</td>`;
+        htmlRows.push(`<tr>${r1}</tr>`);
+        lines.push(['', ...headers, '', '張數', '等級'].join('\t'));
+
+        // 第 2~6 列：各屬性
+        const colSum = [0, 0, 0, 0, 0];
+        let totalCards = 0, totalLevel = 0;
+        for (let a = 0; a < 5; a++) {
+            const st = sheetStyle[a];
+            const headCss = `${sheetFont}background-color:${st.head};color:#000000;text-align:center;`;
+            const cellCss = `${sheetFont}background-color:${st.cells};color:#000000;text-align:center;`;
+            let cardSum = 0, levelSum = 0;
+            const vals = [];
+            let tds = `<td style="${headCss}">${attrNames[a]}</td>`;
+            for (let l = 0; l < 5; l++) {
+                const n = counts[a][l];
+                vals.push(n);
+                tds += `<td style="${cellCss}">${n}</td>`;
+                cardSum += n;
+                levelSum += (l + 1) * n;
+                colSum[l] += n;
+            }
+            tds += '<td></td>';
+            tds += `<td style="${headCss}">${cardSum}</td><td style="${headCss}">${levelSum}</td>`;
+            htmlRows.push(`<tr>${tds}</tr>`);
+            lines.push([attrNames[a], ...vals, '', cardSum, levelSum].join('\t'));
+            totalCards += cardSum;
+            totalLevel += levelSum;
+        }
+
+        // 第 7 列：空白
+        htmlRows.push('<tr></tr>');
+        lines.push('');
+
+        // 第 8 列：欄合計（H、I 欄為黑底白字）
+        const sumCss = `${sheetFont}color:#000000;text-align:center;`;
+        const totCss = `${sheetFont}background-color:#000000;color:#FFFFFF;text-align:center;`;
+        let r8 = `<td style="${sheetFont}color:#000000;">張數</td>`;
+        for (let l = 0; l < 5; l++) r8 += `<td style="${sumCss}">${colSum[l]}</td>`;
+        r8 += `<td style="${sumCss}"></td><td style="${totCss}">${totalCards}</td><td style="${totCss}">${totalLevel}</td>`;
+        htmlRows.push(`<tr>${r8}</tr>`);
+        lines.push(['張數', ...colSum, '', totalCards, totalLevel].join('\t'));
+
+        return { htmlRows, lines };
+    }
+
+    function buildClipboardPayload(code) {
+        const { htmlRows, lines } = buildSheetCells();
+        const codeCss = `${sheetFont}color:#000000;`;
+        htmlRows.push(`<tr><td style="${codeCss}">代碼</td><td style="${codeCss}" colspan="5">${code}</td></tr>`);
+        lines.push(['代碼', code].join('\t'));
+        const html = `<meta charset="utf-8"><table style="border-collapse:collapse;">${htmlRows.join('')}</table>`;
+        return { html, text: lines.join('\n') };
+    }
+
+    async function copyTableToClipboard(html, text) {
+        // 優先使用 Clipboard API（同時放入 HTML 與純文字）
+        if (navigator.clipboard && window.ClipboardItem) {
+            try {
+                await navigator.clipboard.write([new ClipboardItem({
+                    'text/html': new Blob([html], { type: 'text/html' }),
+                    'text/plain': new Blob([text], { type: 'text/plain' }),
+                })]);
+                return true;
+            } catch (err) { /* 改用備援方式 */ }
+        }
+        // 備援：選取隱藏區塊後使用 execCommand('copy')
+        const holder = document.createElement('div');
+        holder.contentEditable = 'true';
+        holder.style.position = 'fixed';
+        holder.style.left = '-9999px';
+        holder.innerHTML = html;
+        document.body.appendChild(holder);
+        const range = document.createRange();
+        range.selectNodeContents(holder);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+        sel.removeAllRanges();
+        holder.remove();
+        return ok;
+    }
+
+    function exportExcel() {
+        const isValid = calculateTotals();
+        if (!isValid) {
+            showModal('❌ 無法複製表格', '牌組不合法！<br>請確認：<br>• 總張數必須剛好 60 張<br>• 總等級必須 ≤ 170', 'error');
+            return;
+        }
+        const code = encodeDeck();
+        document.getElementById('codeInput').value = code;
+        const { html, text } = buildClipboardPayload(code);
+        copyTableToClipboard(html, text).then(ok => {
+            if (ok) {
+                showModal('✅ 表格已複製', `已複製到剪貼簿（含底色與文字色），可直接貼到 Excel 或 Google 試算表。<br>牌組代碼 <strong>${code}</strong>`, 'success');
+            } else {
+                showModal('複製失敗', '此瀏覽器不支援剪貼簿寫入，請改用 Chrome、Edge 或 Safari 再試。', 'error');
+            }
+        });
+    }
+
+    window.onload = () => {
+        setRandomTitleEmoji();
+        renderTable();
+    };
+</script>
+</body>
+</html>

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>2026春季盃 牌組提交</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1 id="title">📮 2026春季盃 牌組提交</h1>
+    <div class="header-right">
+      <div class="code-box id-box">
+        參賽ID：
+        <input id="pidInput" class="code-input" type="text" maxlength="40" placeholder="例：FC-001" autocomplete="off">
+      </div>
+      <div class="code-box">
+        代碼：
+        <input id="codeInput" class="code-input" type="text" maxlength="50" placeholder="輸入代碼 或 明文牌組 (例: 44433 40002 ...)" autocomplete="off">
+        <button onclick="importCode()" class="btn">匯入</button>
+      </div>
+      <button id="genBtn" onclick="generateSubmission()" class="btn">🔒 產生提交碼</button>
+      <button id="submitBtn" onclick="confirmSubmit()" class="btn submit-btn" disabled>📮 確認提交</button>
+      <button onclick="resetDeck()" class="btn reset-btn">清空牌組</button>
+    </div>
+  </header>
+
+  <div id="resultPanel" class="panel" hidden>
+    <h3>
+      <span>🔑 提交資料（請先保存，再按「確認提交」）</span>
+      <span id="submitBadge" class="badge">尚未提交</span>
+    </h3>
+    <div class="kv">
+      <div class="k">參賽 ID</div><div class="v" id="outId"></div>
+      <div class="k">提交碼</div><div class="v" id="outSub"></div>
+      <div class="k">解鎖金鑰</div><div class="v key" id="outKey"></div>
+    </div>
+    <div class="actions">
+      <button class="btn blue" onclick="copyAll()">📋 複製全部</button>
+      <button class="btn green" onclick="downloadReceipt()">⬇ 下載憑證檔</button>
+    </div>
+    <div class="note">
+      ⚠️ <b>解鎖金鑰只存在你的裝置上</b>，遺失後任何人都無法解開你的牌組。四強驗牌前請勿交給任何人（包括主辦方）。<br>
+      修改 ID 或牌組後，提交碼會作廢，需要重新產生。
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="deckTable">
+      <thead>
+        <tr>
+          <th class="attr-header">屬性</th>
+          <th>1級</th><th>2級</th><th>3級</th><th>4級</th><th>5級</th>
+          <th>屬性<br>張數</th><th>屬性<br>等級總和</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td style="text-align:left; padding-left:20px;">全牌組總計</td>
+          <td id="totalLv1">0</td><td id="totalLv2">0</td><td id="totalLv3">0</td><td id="totalLv4">0</td><td id="totalLv5">0</td>
+          <td id="totalCards" style="font-size:22px;">0</td>
+          <td id="totalLevel" style="font-size:22px;">0</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <div class="info">
+    <div>
+      📌 <strong>提交步驟：</strong><br>
+      ① 輸入參賽ID ② 編輯牌組（或貼上牌組編輯器的代碼後按「匯入」）<br>
+      ③ 按「產生提交碼」，保存解鎖金鑰（複製全部 或 下載憑證檔）<br>
+      ④ 按「確認提交」，在開啟的 Google 表單登入並送出<br>
+      <span style="color:#1a73e8;">點擊格子 → 跳出數字按鈕設定張數 • 手機版請左右滑動表格</span>
+    </div>
+    <div style="text-align:right;">
+      ✅ 總張數必須 <strong>剛好 60</strong><br>
+      ✅ 總等級必須 <strong>≤ 170</strong><br>
+      <span id="status" style="font-weight:700;"></span>
+    </div>
+  </div>
+  <div class="copyright">
+    《CFE 2026 牌組提交程式》V1.0 by FallCloud &amp; Claude
+  </div>
+</div>
+
+<script src="cfe-commit.js"></script>
+<script>
+  // ============================================================
+  //  Google 表單設定（建立表單後填入，詳見 README「確認提交設定」）
+  //  formUrl：表單網址，結尾為 /viewform
+  //  idEntry / codeEntry：「參賽ID」「提交碼」兩個題目的 entry 編號
+  // ============================================================
+  const FORM_CONFIG = {
+    formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSdsCxdpFSUf5wbfwAe4-v21l7YkuW_Xm-CVBvNMjpHh_dfapA/viewform',
+    idEntry: 'entry.1714871802',     // 參賽ID
+    codeEntry: 'entry.717023501',    // 提交碼
+  };
+
+  const C = window.CFECommit;
+  const fiveElements = ["🪨", "🌳", "💧", "🔥", "⛰️"];
+  let counts = Array(5).fill().map(() => Array(5).fill(0));
+  const attrNames = ['金', '木', '水', '火', '土'];
+  const attrColors = ['gold', 'wood', 'water', 'fire', 'earth'];
+  const attrBg = ['#f8f8f8', '#e8f5e8', '#e8f3f8', '#f8e8e8', '#f8f5e8'];
+  let current = null;      // 目前有效的提交資料
+  let submitted = false;
+
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function showModal(title, message, type = 'info', confirmText = '確定', cancelText = null, onConfirm = null) {
+    const old = document.getElementById('customModal');
+    if (old) old.remove();
+    const modal = document.createElement('div');
+    modal.id = 'customModal';
+    modal.style.cssText = `position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 2000; animation: fadeInModal 0.2s ease;`;
+    const box = document.createElement('div');
+    box.style.cssText = `background: white; width: 92%; max-width: 420px; border-radius: 20px; box-shadow: 0 15px 50px rgba(0,0,0,0.4); overflow: hidden;`;
+    box.innerHTML = `
+      <div style="padding: 28px 24px 20px; text-align:center;">
+        <div style="font-size:52px; margin-bottom:16px;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</div>
+        <h3 style="margin:0 0 16px; font-size:21px; color:#222;">${title}</h3>
+        <p style="margin:0; color:#555; line-height:1.6; font-size:16px;">${message}</p>
+      </div>
+      <div style="background:#f8f9fa; padding:18px; display:flex; gap:12px; justify-content:center;">
+        ${cancelText ? `<button id="modalCancel" style="flex:1; padding:14px; border:none; border-radius:9999px; background:#ccc; font-weight:600; font-size:16px; cursor:pointer;">${cancelText}</button>` : ''}
+        <button id="modalConfirm" style="flex:1; padding:14px; border:none; border-radius:9999px; background:${type==='error' ? '#d32f2f' : '#1a73e8'}; color:white; font-weight:600; font-size:16px; cursor:pointer;">${confirmText}</button>
+      </div>`;
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+    document.getElementById('modalConfirm').onclick = () => { modal.remove(); if (onConfirm) onConfirm(); };
+    const cancelBtn = document.getElementById('modalCancel');
+    if (cancelBtn) cancelBtn.onclick = () => modal.remove();
+  }
+
+  // ---------- 牌組表格（與牌組編輯器相同） ----------
+  function calculateTotals() {
+    let totalCards = 0, totalLevel = 0;
+    const colTotals = [0,0,0,0,0];
+    for (let a = 0; a < 5; a++) {
+      let attrCards = 0, attrLevel = 0;
+      for (let l = 0; l < 5; l++) {
+        const num = counts[a][l];
+        attrCards += num; attrLevel += (l + 1) * num; colTotals[l] += num;
+      }
+      totalCards += attrCards; totalLevel += attrLevel;
+      document.getElementById(`attrCards${a}`).textContent = attrCards;
+      document.getElementById(`attrLevel${a}`).textContent = attrLevel;
+    }
+    for (let i = 0; i < 5; i++) document.getElementById(`totalLv${i+1}`).textContent = colTotals[i];
+    document.getElementById('totalCards').textContent = totalCards;
+    document.getElementById('totalLevel').textContent = totalLevel;
+    const valid = (totalCards === 60 && totalLevel <= 170);
+    const status = document.getElementById('status');
+    document.getElementById('totalCards').classList.toggle('invalid', totalCards !== 60);
+    document.getElementById('totalLevel').classList.toggle('invalid', totalLevel > 170);
+    status.innerHTML = valid ? '✅ <span style="color:#4caf50">合法牌組</span>' : '⚠️ <span style="color:#f44336">不合法</span>';
+    return valid;
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    for (let a = 0; a < 5; a++) {
+      const row = document.createElement('tr');
+      const attrCell = document.createElement('td');
+      attrCell.className = `attr-header ${attrColors[a]}`;
+      attrCell.style.backgroundColor = attrBg[a];
+      attrCell.style.fontWeight = '700';
+      attrCell.style.fontSize = '19px';
+      attrCell.textContent = attrNames[a];
+      row.appendChild(attrCell);
+      for (let l = 0; l < 5; l++) {
+        const cell = document.createElement('td');
+        cell.className = `cell ${attrColors[a]}`;
+        cell.dataset.attr = a; cell.dataset.level = l;
+        cell.textContent = counts[a][l];
+        cell.addEventListener('click', function (e) { e.stopImmediatePropagation(); showNumberPopup(this); });
+        row.appendChild(cell);
+      }
+      for (const kind of ['Cards', 'Level']) {
+        const td = document.createElement('td');
+        td.className = 'subtotal'; td.id = `attr${kind}${a}`; td.textContent = '0';
+        row.appendChild(td);
+      }
+      tbody.appendChild(row);
+    }
+    calculateTotals();
+  }
+
+  function showNumberPopup(cell) {
+    hideNumberPopup();
+    const attr = parseInt(cell.dataset.attr), level = parseInt(cell.dataset.level);
+    const max = (level < 3) ? 4 : 3;
+    const rect = cell.getBoundingClientRect();
+    const popup = document.createElement('div');
+    popup.className = 'number-popup'; popup.id = 'numberPopup';
+    const leftPos = rect.left + window.scrollX + (rect.width / 2) - (max === 4 ? 160 : 130);
+    popup.style.left = Math.max(20, leftPos) + 'px';
+    popup.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+    for (let i = 0; i <= max; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'number-btn'; btn.textContent = i;
+      btn.onclick = (e) => {
+        e.stopImmediatePropagation();
+        if (counts[attr][level] !== i) { counts[attr][level] = i; invalidateSubmission(); }
+        cell.textContent = i;
+        calculateTotals(); hideNumberPopup();
+      };
+      popup.appendChild(btn);
+    }
+    document.body.appendChild(popup);
+    setTimeout(() => document.addEventListener('click', hideOnOutsideClick, { once: true }), 100);
+  }
+  function hideNumberPopup() { const p = document.getElementById('numberPopup'); if (p) p.remove(); }
+  function hideOnOutsideClick(e) {
+    if (document.getElementById('numberPopup') && !e.target.closest('.number-popup') && !e.target.classList.contains('cell')) hideNumberPopup();
+  }
+
+  function importCode() {
+    const input = document.getElementById('codeInput').value.trim();
+    if (input === '') { showModal('輸入空白', '請輸入代碼 或 明文牌組構成', 'error'); return; }
+    const c = C.parseDeckInput(input);
+    if (!c || !C.deckStats(c).legal) {
+      showModal('匯入失敗', '此輸入無效或牌組不合法<br>（請輸入正確的代碼 或 25碼數字的明文牌組）', 'error');
+      return;
+    }
+    counts = c; invalidateSubmission(); renderTable();
+    showModal('匯入成功', '牌組已正確載入！', 'success');
+  }
+
+  function resetDeck() {
+    showModal('確認清空牌組？', '所有卡片張數將歸零，且無法復原。<br>確定要繼續嗎？', 'warning', '確定清空', '取消', () => {
+      counts = Array(5).fill().map(() => Array(5).fill(0));
+      document.getElementById('codeInput').value = '';
+      invalidateSubmission(); renderTable();
+    });
+  }
+
+  // ---------- 提交碼 ----------
+  function invalidateSubmission() {
+    current = null; submitted = false;
+    document.getElementById('resultPanel').hidden = true;
+    document.getElementById('submitBtn').disabled = true;
+  }
+
+  async function generateSubmission() {
+    const rawId = document.getElementById('pidInput').value;
+    if (!C.normalizeId(rawId)) { showModal('缺少參賽ID', '請先在上方輸入你的參賽ID', 'error'); return; }
+    if (!calculateTotals()) {
+      showModal('無法產生提交碼', '牌組不合法！<br>請確認：<br>• 總張數必須剛好 60 張<br>• 總等級必須 ≤ 170', 'error');
+      return;
+    }
+    const make = async () => {
+      try {
+        const r = await C.createSubmission(rawId, counts);
+        const chk = await C.reveal(r.id, r.submission, r.key);          // 自我驗證
+        if (!chk.ok || chk.deckCode !== r.deckCode) throw new Error('自我驗證失敗，請重新整理頁面後再試');
+        current = r; submitted = false;
+        document.getElementById('outId').textContent = r.id;
+        document.getElementById('outSub').textContent = r.submissionDisplay;
+        document.getElementById('outKey').textContent = r.keyDisplay;
+        document.getElementById('codeInput').value = r.deckCode;
+        updateBadge();
+        const panel = document.getElementById('resultPanel');
+        panel.hidden = false;
+        document.getElementById('submitBtn').disabled = false;
+        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (e) { showModal('產生失敗', esc(e.message), 'error'); }
+    };
+    if (current) {
+      showModal('重新產生提交碼？', '將產生<b>新的提交碼與金鑰</b>，目前這組會作廢。<br>若已提交過，請記得用新的提交碼再提交一次。', 'warning', '重新產生', '取消', make);
+    } else make();
+  }
+
+  function updateBadge() {
+    const b = document.getElementById('submitBadge');
+    b.textContent = submitted ? '已開啟提交表單' : '尚未提交';
+    b.classList.toggle('ok', submitted);
+    document.getElementById('resultPanel').classList.toggle('done', submitted);
+  }
+
+  function receiptText(r) {
+    return [
+      '《CFE 2026春季盃》牌組提交憑證',
+      '產生時間：' + new Date().toLocaleString('zh-TW'),
+      '',
+      '參賽ID：' + r.id,
+      '提交碼：' + r.submissionDisplay,
+      '解鎖金鑰：' + r.keyDisplay + '　（四強驗牌前請勿交給任何人）',
+      '牌組代碼：' + r.deckCode + '　（僅供自己核對，請勿提交）',
+    ].join('\n');
+  }
+  async function copyAll() {
+    if (!current) return;
+    try {
+      await navigator.clipboard.writeText(receiptText(current));
+      showModal('已複製', '參賽ID、提交碼、解鎖金鑰已複製到剪貼簿，<br>請貼到安全的地方保存。', 'success');
+    } catch { showModal('複製失敗', '請改用「下載憑證檔」，或手動選取文字複製。', 'error'); }
+  }
+  function downloadReceipt() {
+    if (!current) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([receiptText(current)], { type: 'text/plain;charset=utf-8' }));
+    a.download = `2026春季盃_牌組憑證_${current.id}.txt`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  // ---------- 確認提交：開啟預填好的 Google 表單 ----------
+  function formLink(r) {
+    const u = new URL(FORM_CONFIG.formUrl);
+    u.searchParams.set('usp', 'pp_url');
+    u.searchParams.set(FORM_CONFIG.idEntry, r.id);
+    u.searchParams.set(FORM_CONFIG.codeEntry, r.submissionDisplay);
+    return u.toString();
+  }
+  function confirmSubmit() {
+    if (!current) return;
+    if (!FORM_CONFIG.formUrl || !FORM_CONFIG.idEntry || !FORM_CONFIG.codeEntry) {
+      showModal('提交表單尚未開放', '主辦方尚未設定提交表單。<br>請先保存好提交資料，待公告後再提交。', 'warning');
+      return;
+    }
+    showModal('確認提交',
+      `參賽ID：<b>${esc(current.id)}</b><br>提交碼：<span class="mono" style="font-size:14px;word-break:break-all">${esc(current.submissionDisplay)}</span><br><br>` +
+      '請確認<b>已保存解鎖金鑰</b>。<br>按「前往提交」會開啟 Google 表單（已自動填好），<br>請登入後按下表單的「提交」按鈕才算完成。',
+      'info', '前往提交', '取消', () => {
+        const w = window.open(formLink(current), '_blank');
+        if (w) w.opener = null; else location.href = formLink(current);
+        submitted = true; updateBadge();
+      });
+  }
+
+  // 修改 ID 會讓提交碼作廢
+  document.getElementById('pidInput').addEventListener('input', () => { if (current) invalidateSubmission(); });
+
+  window.onload = () => {
+    document.getElementById('title').textContent =
+      `${fiveElements[Math.floor(Math.random() * fiveElements.length)]} 2026春季盃 牌組提交`;
+    renderTable();
+  };
+</script>
+</body>
+</html>

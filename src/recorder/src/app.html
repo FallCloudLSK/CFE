@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>五行戰鬥牌 戰局記錄器</title>
+<link rel="icon" href="__LOGO__">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+:root{
+  --bg:#eef5fb; --card:#ffffff; --ink:#1f2d3d; --sub:#6b7f95; --line:#d6e4f0;
+  --pri:#2f74c0; --pri-soft:#e3f0fb; --pri-deep:#1d4f8a; --gold:#d4a017;
+  --L:#2f74c0; --L-soft:#e8f2fc; --R:#c0702f; --R-soft:#fdf1e6;
+  --bad:#d0576b; --bad-bg:#fde2e4; --warn-bg:#fff4d1; --ok:#2e9d6a;
+  --e0:#9aa3ad; --e1:#3fae4f; --e2:#2f86d6; --e3:#e0532f; --e4:#c9a20e;
+  --e0s:#eef0f2; --e1s:#e3f6e3; --e2s:#e2effb; --e3s:#fde8e2; --e4s:#fbf5d7;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{font-family:'Noto Sans TC',system-ui,-apple-system,sans-serif;margin:0;padding:10px;background:var(--bg);color:var(--ink);line-height:1.45;-webkit-tap-highlight-color:transparent}
+button,input,select{font-family:inherit}
+.container{max-width:1400px;margin:0 auto;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(31,79,138,.10)}
+header{background:linear-gradient(135deg,#2f6db5 0%,#4c9bd8 55%,#7cc6ea 100%);color:#fff;padding:8px 16px;display:flex;align-items:stretch;gap:12px;border-radius:16px 16px 0 0}
+.brand{display:flex;align-items:center;gap:12px;flex:0 1 auto;min-width:0}
+.brand img{width:48px;height:48px;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.25);border:2px solid rgba(255,255,255,.7)}
+.brand h1{margin:0;font-size:22px;font-weight:900;letter-spacing:1px}
+.brand h1 .ver{font-size:13px;font-weight:700;letter-spacing:0;opacity:.85;margin-left:10px}
+.brand .sub{font-size:14px;opacity:.92}
+.tools{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;gap:5px}
+.trow{display:flex;gap:10px;flex:1 1 0;min-height:28px;align-items:stretch}
+.tg{display:flex;gap:5px;align-items:stretch}
+.tbtn{background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.45);padding:0 12px;border-radius:9999px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center}
+.tbtn:disabled{opacity:.4;cursor:default}
+.tsel{background:rgba(255,255,255,.95);color:var(--pri-deep);border:none;padding:0 10px;border-radius:9999px;font-size:14px;font-weight:700}
+@media (min-width:1100px){.tools{flex-direction:row;align-items:center;justify-content:flex-end;gap:10px}.trow{flex:none;min-height:0}.tbtn,.tsel{padding:7px 13px;font-size:15px}}
+@media (max-width:600px){header{flex-wrap:wrap}.tools{flex-basis:100%;align-items:stretch}.trow{flex-wrap:wrap}}
+footer{text-align:center;color:#8aa0b6;font-size:12px;padding:8px 0 12px}
+
+/* ---- setup ---- */
+.setup{padding:24px;max-width:860px;margin:0 auto}
+.setup h2{color:var(--pri-deep);margin:0 0 16px}
+.vs-row{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:end}
+.pbox{border:2px solid var(--line);border-radius:16px;padding:14px}
+.pbox.L{border-color:#b9d5f1;background:var(--L-soft)} .pbox.R{border-color:#f0d0b4;background:var(--R-soft)}
+.pbox label{font-size:14px;color:var(--sub);font-weight:700}
+.pbox input{width:100%;font-size:22px;font-weight:700;padding:10px 12px;border:2px solid var(--line);border-radius:12px;margin-top:4px;background:#fff}
+.pbox .first{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:17px;font-weight:700;cursor:pointer}
+.pbox .first input{width:22px;height:22px;margin:0}
+.vs-row .vs{font-size:28px;font-weight:900;color:#9fb3c8;padding-bottom:30px}
+.mods{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.mods label{border:2px solid var(--line);border-radius:9999px;padding:6px 14px;font-size:15px;font-weight:700;cursor:pointer;display:flex;gap:6px;align-items:center}
+.mods label.on{border-color:var(--pri);background:var(--pri-soft);color:var(--pri-deep)}
+.mods input{display:none}
+.btn{border:none;padding:12px 22px;border-radius:9999px;font-weight:700;font-size:17px;cursor:pointer;background:var(--pri);color:#fff;box-shadow:0 3px 10px rgba(47,116,192,.25)}
+.btn.soft{background:var(--pri-soft);color:var(--pri-deep);box-shadow:none}
+.btn.ghost{background:#fff;color:var(--pri-deep);border:2px solid var(--line);box-shadow:none}
+.btn.gold{background:linear-gradient(135deg,#e2b33b,#cf8f17);box-shadow:0 3px 10px rgba(207,143,23,.3)}
+.btn.danger{background:var(--bad)}
+.btn.sm{padding:8px 14px;font-size:15px}
+.btn:disabled{background:#c9d4df;color:#fff;box-shadow:none;cursor:default}
+
+/* ---- board ---- */
+.stick{position:sticky;top:0;z-index:20;box-shadow:0 4px 12px rgba(31,79,138,.18)}
+@media (max-width:600px),(max-height:560px){.stick{position:static;box-shadow:none}}
+.board{display:grid;grid-template-columns:1fr 210px 1fr;gap:10px;padding:10px 12px;background:#f4f9fd;border-bottom:1px solid var(--line)}
+.pc{background:#fff;border:3px solid var(--line);border-radius:16px;padding:8px 12px;position:relative;transition:box-shadow .2s,border-color .2s;min-height:150px}
+.pc.L{border-left:8px solid var(--L)} .pc.R{border-right:8px solid var(--R)}
+.pc.turn{border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,160,23,.28),0 6px 18px rgba(212,160,23,.25)}
+.pc.turn::after{content:'本回合';position:absolute;top:-12px;background:var(--gold);color:#fff;font-size:13px;font-weight:900;padding:1px 10px;border-radius:9999px}
+.pc.L.turn::after{left:14px} .pc.R.turn::after{right:14px}
+.pc .top{display:flex;align-items:baseline;gap:10px}
+.pc.R .top{flex-direction:row-reverse}
+.pc .nm{font-size:21px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc.L .nm{color:var(--L)} .pc.R .nm{color:var(--R)}
+.pc .hp{font-size:38px;font-weight:900;line-height:1;margin-left:auto}
+.pc.R .hp{margin-left:0;margin-right:auto}
+.pc .hp small{font-size:15px;color:var(--sub);font-weight:700}
+.bar{height:9px;background:#eef2f6;border-radius:9999px;overflow:hidden;margin:5px 0 7px}
+.bar i{display:block;height:100%;border-radius:9999px;background:linear-gradient(90deg,#4fc08d,#2e9d6a)}
+.pc.R .bar i{margin-left:auto}
+.bar i.mid{background:linear-gradient(90deg,#f0c34a,#d9a21a)} .bar i.low{background:linear-gradient(90deg,#ef7d8d,#d0576b)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.pc.R .chips{justify-content:flex-end}
+.ch{display:inline-flex;align-items:center;gap:4px;border-radius:9999px;padding:2px 10px;font-size:14px;font-weight:700;background:#f1f5f9;color:#3c4f63;white-space:nowrap}
+.ch.k{background:var(--pri-soft);color:var(--pri-deep)}
+.ch.sh{background:#e7f6ff;color:#1677a8}
+.ch.st{background:#fff0d6;color:#9a6200}
+.ch.bad{background:var(--bad-bg);color:#b03548}
+.ch.e0{background:var(--e0s);color:#5d6670}.ch.e1{background:var(--e1s);color:#2a7f37}.ch.e2{background:var(--e2s);color:#1d64a8}.ch.e3{background:var(--e3s);color:#b23a1c}.ch.e4{background:var(--e4s);color:#8a6d00}
+.ch .lab{color:var(--sub);font-weight:500;font-size:12px}
+.pips{display:inline-flex;gap:2px}.pips b{width:9px;height:9px;border-radius:50%;background:#dfe6ee;display:inline-block}.pips b.on{background:currentColor}
+.mini-back{width:16px;height:24px;border-radius:3px;vertical-align:middle;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.stars5{display:inline-flex;gap:2px;margin-left:2px}.stars5 b{width:8px;height:8px;border-radius:2px;background:#e3e9ef}.stars5 b.on{background:var(--gold)}
+.hand{font-size:15px;font-weight:700;color:var(--ink)}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
+.center .tn{font-size:15px;color:var(--sub);font-weight:700}
+.center .tn b{font-size:36px;color:var(--pri-deep);display:block;line-height:1}
+.center .env{font-size:15px;font-weight:800;padding:3px 14px;border-radius:9999px;background:#f1f5f9;color:var(--sub)}
+.center .who{font-size:15px;font-weight:800}
+.center .over{background:linear-gradient(135deg,#e7b93d,#c98a10);color:#fff;padding:5px 12px;border-radius:12px;font-weight:900;font-size:15px}
+
+/* ---- edit bar ---- */
+.editbar{background:#fff7dc;border-bottom:2px solid #f0d27a;padding:8px 16px;display:flex;align-items:center;gap:12px;font-weight:800;color:#7a5600}
+.editbar .btn{margin-left:auto}
+
+/* ---- timeline ---- */
+.badlist{margin:2px 0}.badlist summary{cursor:pointer;color:var(--sub);font-size:14px;padding:4px 2px}.badlist .cb{margin-top:6px}
+.tl{max-height:30vh;overflow:auto;border-bottom:1px solid var(--line)}
+.tl table{border-collapse:separate;border-spacing:0;width:100%}
+.tl th{white-space:nowrap;position:sticky;top:0;z-index:1;background:#f1f7fc;color:var(--pri-deep);font-size:14px;padding:6px;border-bottom:1px solid var(--line)}
+.tl td{padding:5px 8px;border-bottom:1px solid #e8eff6;font-size:15px;vertical-align:top}
+.tl tr{cursor:pointer}
+.tl tr:hover td{background:#f6fbff}
+.tl td.n{font-weight:900;color:var(--sub);text-align:center;width:46px}
+.tl td.who{font-weight:800;white-space:nowrap;width:1%}
+.tl tr.p0 td.who{color:var(--L)} .tl tr.p1 td.who{color:var(--R)}
+.tl tr.p0 td:first-child{box-shadow:inset 5px 0 0 var(--L)} .tl tr.p1 td:first-child{box-shadow:inset 5px 0 0 var(--R)}
+.tl td.hp{text-align:center;font-weight:900;width:56px}
+.tl td.c{text-align:center;width:1%;white-space:nowrap}
+.tl .act{font-weight:700}
+.tl .nt{color:var(--sub);font-size:13px}
+.tl .pre{color:#5b4ba0;font-size:14px}
+.tl tr.error td{background:var(--bad-bg)!important}
+.tl tr.warn td{background:var(--warn-bg)!important}
+.tl tr.live td{background:#fffdf3}
+.tl tr.editing td{outline:2px solid var(--gold);outline-offset:-2px}
+.tl .iss{color:#b03548;font-size:13px;font-weight:700}
+.tl .iss.w{color:#9a6a00}
+
+tr.pre0 td{background:#f6f2ff;font-size:14px}
+tr.pre0.warn td{background:var(--warn-bg)!important}
+.tl tr.pre0 td:first-child{box-shadow:inset 5px 0 0 #8a6fd0}
+/* ---- ops ---- */
+.ops{display:grid;grid-template-columns:270px auto 1fr;gap:12px;padding:12px}
+.col h3{margin:0 0 6px;font-size:15px;color:var(--pri-deep);display:flex;align-items:center;gap:8px}
+.col h3 .who{font-size:13px;padding:1px 10px;border-radius:9999px;color:#fff}
+.prebtns{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.pb{display:flex;align-items:center;gap:8px;border:2px solid var(--line);background:#fff;border-radius:12px;padding:8px 10px;font-size:16px;font-weight:800;cursor:pointer;text-align:left;color:var(--ink)}
+.pb small{flex:1;min-width:0;font-weight:500;color:var(--sub);font-size:12px;margin-left:auto;text-align:right}
+.pb.pouch{border-color:#c9b8f0;background:#f6f2ff}
+.pb.ab{border-color:#b9d5f1;background:#f2f8fe}
+.pb.sp{border-color:#bfe3c9;background:#f1fbf3}
+.pb.rt{border-color:#e9d6a8;background:#fffaf0}
+.pb.off{opacity:.5}
+.pb .ico{font-size:18px}
+.empty{color:#a3b3c3;font-size:14px;padding:6px 2px}
+.acts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.acts li{border:1px solid var(--line);border-radius:10px;padding:6px 32px 6px 10px;position:relative;font-size:14px;background:#fbfdff}
+.acts li b{font-size:15px}
+.acts li .nt{color:var(--sub);font-size:12px}
+.acts li.error{background:var(--bad-bg);border-color:#f1b8c1}
+.acts li.warn{background:var(--warn-bg);border-color:#f0dd9c}
+.acts li .x{position:absolute;right:4px;top:4px;border:none;background:transparent;font-size:18px;color:#a3b3c3;cursor:pointer;padding:2px 6px}
+.acts li .iss{color:#b03548;font-size:12px;font-weight:700}
+.acts li .iss.w{color:#9a6a00}
+.revealbox{border:2px dashed #e0a74b;background:#fff8ec;border-radius:12px;padding:8px 10px;font-size:14px;font-weight:700;color:#8a5a00;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.revealbox .btn{margin-left:auto}
+
+.grid{display:grid;grid-template-columns:22px repeat(5,52px);gap:5px;align-items:center}
+.grid .el{font-weight:900;font-size:16px;text-align:center}
+.cd{position:relative;width:52px;height:78px;border-radius:7px;cursor:pointer;border:2px solid transparent;padding:0;background:#ddd;overflow:hidden;box-shadow:0 2px 5px rgba(0,0,0,.18);user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.cd img{width:100%;height:100%;display:block;pointer-events:none}
+.cd .cnt{position:absolute;right:2px;top:2px;background:var(--gold);color:#fff;font-weight:900;font-size:13px;border-radius:9999px;min-width:20px;height:20px;line-height:20px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.cd.on{border-color:var(--gold);transform:translateY(-2px)}
+.cd:active{transform:scale(.96)}
+.tray{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;min-height:44px;background:#f4f9fd;border:1px dashed var(--line);border-radius:12px;padding:6px 8px;max-width:310px}
+.tray .tc{display:inline-flex;align-items:center;gap:2px;border-radius:8px;padding:4px 8px;font-weight:900;font-size:16px;cursor:pointer;border:2px solid transparent}
+.tray .hint{color:#a3b3c3;font-size:13px}
+.tray .clr{margin-left:auto;border:none;background:#fff;border-radius:9999px;padding:4px 10px;font-weight:700;color:var(--sub);cursor:pointer;border:1px solid var(--line)}
+.e0c{background:var(--e0s);color:#5d6670}.e1c{background:var(--e1s);color:#2a7f37}.e2c{background:var(--e2s);color:#1d64a8}.e3c{background:var(--e3s);color:#b23a1c}.e4c{background:var(--e4s);color:#8a6d00}
+.cb{border:2px solid #b9d5f1;background:#f6fbff;border-radius:12px;padding:8px 12px;text-align:left;cursor:pointer;color:var(--ink)}
+.cb .t{font-size:17px;font-weight:900;display:flex;gap:8px;align-items:baseline}
+.cb .t .pts{color:var(--pri-deep);font-size:15px}
+.cb .t .tag{margin-left:auto;font-size:12px;font-weight:700;color:var(--sub)}
+.cb .d{font-size:13px;color:var(--sub)}
+.cb.job{border-color:#c9b8f0;background:#f7f3ff}
+.cb.cov{border-color:#d7dee6;background:#f8fafc}
+.cb.bad{border-color:#f1b8c1;background:#fff5f6}
+.cb.bad .d{color:#b03548;font-weight:700}
+.h3s{font-size:12px;font-weight:600;color:var(--sub);margin-left:6px}
+.seltray{display:flex;align-items:center;gap:8px;min-height:84px;margin-bottom:8px;flex-wrap:wrap}
+.seltray .clr{margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:9999px;padding:5px 12px;font-weight:700;color:var(--sub);cursor:pointer}
+.slot{width:50px;height:75px;border:2px dashed #b7c9da;border-radius:7px;background:#f4f9fd;flex:none}
+.slotc{position:relative;width:50px;height:75px;flex:none}
+.slotc img{width:100%;height:100%;border-radius:7px;display:block;box-shadow:0 2px 5px rgba(0,0,0,.2)}
+.slotc .x{position:absolute;right:-7px;top:-7px;width:22px;height:22px;border-radius:50%;border:2px solid #fff;background:#b03548;color:#fff;font-size:12px;font-weight:900;line-height:18px;text-align:center;cursor:pointer;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.slots{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px;padding:10px;background:#f4f9fd;border-radius:12px}
+.cands{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;max-height:360px;overflow:auto;padding:2px 4px 2px 0;align-content:start}
+.cands .cb .t{flex-wrap:wrap;row-gap:0}.cands .cb .t .tag{margin-left:0;flex-basis:100%}
+.cands > .empty,.cands > .badlist{grid-column:1/-1}
+.badlist[open]{display:grid;grid-template-columns:inherit;gap:6px}
+.badlist summary{grid-column:1/-1}
+@media (orientation:portrait){.cands{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.endbtns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;position:sticky;bottom:0;z-index:10;background:#fff;padding:8px 0 6px;border-top:1px solid var(--line);box-shadow:0 -6px 10px -6px rgba(31,79,138,.2)}
+.endbtns .btn{padding:11px 6px;font-size:15px}
+.endbtns .btn.end{grid-column:span 4;font-size:18px;padding:13px}
+
+/* ---- modal ---- */
+.mw{position:fixed;inset:0;background:rgba(15,40,70,.55);display:flex;align-items:center;justify-content:center;z-index:1500;animation:fadeIn .12s ease;padding:10px}
+.md{background:#fff;width:100%;max-width:560px;border-radius:20px;box-shadow:0 15px 50px rgba(0,0,0,.35);overflow:hidden;max-height:94vh;display:flex;flex-direction:column}
+.md.wide{max-width:720px}
+.md .hd{padding:16px 20px 6px;font-size:20px;font-weight:900;color:var(--pri-deep)}
+.md .hd small{display:block;font-size:13px;color:var(--sub);font-weight:500;margin-top:2px}
+.md .bd{padding:8px 20px 14px;overflow:auto}
+.md .ft{background:#f8f9fa;padding:12px 16px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opt{border:2px solid var(--line);background:#fff;border-radius:12px;padding:11px 14px;text-align:left;font-size:17px;font-weight:800;cursor:pointer;color:var(--ink)}
+.opt small{display:block;font-weight:500;color:var(--sub);font-size:13px}
+.opt:hover{border-color:var(--pri);background:var(--pri-soft)}
+.opt.row{display:inline-block}
+.optrow{display:flex;gap:8px;flex-wrap:wrap}
+.optrow .opt{flex:1;text-align:center;min-width:70px}
+.frm{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;font-size:16px}
+.frm select,.frm input{font-size:17px;padding:8px 10px;border:2px solid var(--line);border-radius:10px;width:100%}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f2d3d;color:#fff;padding:10px 20px;border-radius:9999px;font-weight:700;z-index:2000;box-shadow:0 6px 20px rgba(0,0,0,.3);font-size:15px}
+
+@media (max-width:1100px){
+  .ops{grid-template-columns:1fr 1fr}
+  .ops .col.a{grid-column:span 2}
+}
+@media (max-width:1100px){
+  .board{grid-template-columns:1fr 112px 1fr;gap:6px;padding:6px 8px}
+  .pc{min-height:0;padding:5px 10px}
+  .pc .nm{font-size:18px}.pc .hp{font-size:30px}.pc .hp small{font-size:13px}
+  .bar{margin:3px 0 5px;height:7px}
+  .ch{font-size:12.5px;padding:1px 8px}.ch .lab{font-size:11px}.chips{gap:3px}
+  .center .tn b{font-size:28px}.center{gap:3px}.center .env,.center .who{font-size:13px}
+}
+@media (max-width:1100px) and (min-width:600px){
+  .ops .col.a{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+  .ops .col.a .pb{flex-wrap:wrap;row-gap:0}
+  .ops .col.a .pb small{flex-basis:100%;margin-left:0;text-align:left}
+}
+@media (max-width:760px){
+  .board{grid-template-columns:1fr 1fr}
+  .board .center{grid-column:span 2;order:-1;flex-direction:row;flex-wrap:wrap}
+  .ops{grid-template-columns:1fr}
+  .ops .col.a{grid-column:auto}
+  .vs-row{grid-template-columns:1fr}
+  .vs-row .vs{padding:0;text-align:center}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="brand"><img src="__LOGO__" alt=""><div><h1>戰局記錄器<small class="ver">規則版本：5.17</small></h1><div class="sub" id="subTitle">五行戰鬥牌</div></div></div>
+    <div class="tools" id="tools" hidden>
+      <div class="trow">
+        <div class="tg"><select class="tsel" id="gameSel" title="切換對局"></select><button class="tbtn" id="bNew">＋新局</button></div>
+        <div class="tg"><button class="tbtn" id="bUndo" title="復原">↶</button><button class="tbtn" id="bRedo" title="重做">↷</button></div>
+      </div>
+      <div class="trow">
+        <div class="tg"><button class="tbtn" id="bHtml">匯出網頁</button><button class="tbtn" id="bXlsx">匯出Excel</button></div>
+        <div class="tg"><button class="tbtn" id="bBackup">備份</button><button class="tbtn" id="bRestore">還原</button><button class="tbtn" id="bReset">清除重來</button></div>
+      </div>
+    </div>
+  </header>
+
+  <div id="setup" class="setup" hidden>
+    <h2>開始記錄</h2>
+    <div class="vs-row">
+      <div class="pbox L"><label>左方選手</label><input id="pL" list="plist" placeholder="選擇或輸入名字">
+        <label class="first"><input type="radio" name="first" value="0" checked>先攻</label></div>
+      <div class="vs">VS</div>
+      <div class="pbox R"><label>右方選手</label><input id="pR" list="plist" placeholder="選擇或輸入名字">
+        <label class="first"><input type="radio" name="first" value="1">先攻</label></div>
+    </div>
+    <datalist id="plist"></datalist>
+    <div style="margin-top:18px;font-weight:800;color:var(--pri-deep)">使用規則</div>
+    <div class="mods" id="modSel"></div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <label style="font-weight:700">初始生命 <input id="hp0" type="number" value="200" min="1" style="width:90px;font-size:17px;padding:6px 8px;border:2px solid var(--line);border-radius:10px"></label>
+      <button class="btn gold" id="bStart" style="margin-left:auto">開始記錄</button>
+      <button class="btn ghost" id="bRestore2">從備份還原</button>
+    </div>
+    <p style="color:var(--sub);font-size:14px;margin-top:18px">選手名單會自動讀取同資料夾的 players.txt；也可以直接輸入名字。同一組對手可記錄多局；要換選手請按「清除重來」。資料自動保存在這台裝置的瀏覽器中，建議每局結束後按「備份」。</p>
+  </div>
+
+  <div id="main" hidden>
+    <div class="stick"><section class="board" id="board"></section>
+    <div class="editbar" id="editBar" hidden></div></div>
+    <section class="tl" id="tl"></section>
+    <section class="ops">
+      <div class="col a">
+        <div class="sec">
+          <h3>行動前效果 <span class="who" id="opsWho"></span></h3>
+          <div class="prebtns" id="pre"></div>
+        </div>
+        <div class="sec">
+          <h3>本回合記錄</h3>
+          <div id="revealBox"></div>
+          <ul class="acts" id="acts"></ul>
+        </div>
+      </div>
+      <div class="col b">
+        <h3>選牌（點選加入）</h3>
+        <div class="grid" id="grid"></div>
+      </div>
+      <div class="col c">
+        <h3>已選的牌 <small class="h3s">點牌角 ✕ 移除，最多 5 張</small></h3>
+        <div class="seltray" id="tray"></div>
+        <h3>可施展的陣法／轉職</h3>
+        <div class="cands" id="cands"></div>
+        <div class="endbtns" id="endBtns">
+          <button class="btn soft" id="bDiscard">棄牌</button>
+          <button class="btn soft" id="bPass">無法行動</button>
+          <button class="btn soft" id="bAdjust">手動調整</button>
+          <button class="btn soft" id="bNote">備註</button>
+          <button class="btn gold end" id="bEnd">結束回合 ▶</button>
+        </div>
+      </div>
+    </section>
+  </div>
+  <footer>《CFE 2026 戰局記錄器》V1.5 by FallCloud &amp; Claude</footer>
+</div>
+<input type="file" id="fileIn" accept=".json,.html,.htm" hidden>
+<div id="modalRoot"></div>
+
+<script>
+/*__RULES__*/
+/*__ENGINE__*/
+/*__XLSX__*/
+/*__REPORT__*/
+/*__CARDS__*/
+</script>
+<script>
+'use strict';
+const { EL, STARS, TOTEMS, FMAP, JMAP, AMAP, SPIRITS, SPIRIT_TEXT, STRATS, SMAP, card, cs, cardsText } = RULES;
+const KEY = 'cfe-recorder-v1';
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const clone = o => JSON.parse(JSON.stringify(o));
+
+let SES = null;            // { v, players, games:[match], cur, mods, hp }
+let editTurn = null;       // 正在編輯的回合索引
+let sel = [];              // 已選的牌 ['金3', ...]
+let hist = [], fut = [];
+
+/* ---------- 儲存 ---------- */
+function load() { try { const s = localStorage.getItem(KEY); if (s) SES = JSON.parse(s); } catch (e) { SES = null; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(SES)); } catch (e) { toast('無法儲存到瀏覽器'); } }
+function snap() { hist.push(JSON.stringify(SES)); if (hist.length > 60) hist.shift(); fut = []; }
+function commit() { save(); render(); }
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+
+/* ---------- 對局存取 ---------- */
+const cur = () => SES.games[SES.cur];
+function liveIdx() { return cur().turns.length - 1; }
+function workIdx() { return editTurn != null ? editTurn : liveIdx(); }
+function workCtx(extraAction) {
+  const m = cur(), wi = workIdx();
+  const m2 = Object.assign({}, m, { turns: m.turns.slice(0, wi + 1).map((t, k) => (k === wi ? { actions: t.actions.concat(extraAction ? [extraAction] : []), ended: false } : t)) });
+  const r = ENGINE.replay(m2);
+  const rec = r.turns[wi];
+  return { S: rec.after, T: rec.ctx, rec, p: rec.p, q: 1 - rec.p, m: m2 };
+}
+function preview(a) {          // 預覽加入動作後的結果
+  try { const c = workCtx(a); const ar = c.rec.acts[c.rec.acts.length - 1]; return ar; } catch (e) { return null; }
+}
+async function addAction(a) {
+  const c = workCtx();
+  if (['formation', 'cover', 'job', 'pass'].includes(a.kind)) {
+    const ok = await maybeReveal(c);
+    if (ok === false) return;
+  }
+  snap();
+  cur().turns[workIdx()].actions.push(a);
+  if (a.kind === 'pouch' && a.card && c.S.pouchFrom[c.p] == null) setPouch0(c.p, a.card);   // 開局錦囊觸發 → 自動回填
+  sel = [];
+  commit();
+}
+function setPouch0(w, cd) { const m = cur(); if (!m.pouch0) m.pouch0 = [null, null]; m.pouch0[w] = cd || null; }
+
+/* ---------- 設定畫面 ---------- */
+function renderSetup() {
+  $('setup').hidden = false; $('main').hidden = true; $('tools').hidden = true;
+  $('subTitle').textContent = '五行戰鬥牌';
+  const ms = $('modSel'); ms.innerHTML = '';
+  RULES.MODULES.forEach(md => {
+    const l = document.createElement('label'); l.className = 'on';
+    l.innerHTML = '<input type="checkbox" value="' + md.id + '" checked ' + (md.fixed ? 'disabled' : '') + '>' + md.name;
+    l.querySelector('input').onchange = e => l.classList.toggle('on', e.target.checked);
+    ms.appendChild(l);
+  });
+  document.querySelectorAll('.pbox .first').forEach(lb => lb.onclick = () => {});
+  loadPlayers();
+}
+function loadPlayers() {
+  fetch('players.txt', { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(t => {
+    const names = t.split(/\r?\n/).map(s => s.trim()).filter(s => s && !s.startsWith('#'));
+    $('plist').innerHTML = names.map(n => '<option value="' + esc(n) + '">').join('');
+  }).catch(() => {});
+}
+$('bStart').onclick = () => {
+  const a = $('pL').value.trim() || '左方選手', b = $('pR').value.trim() || '右方選手';
+  if (a === b) return toast('兩位選手名字相同');
+  const first = +document.querySelector('input[name=first]:checked').value;
+  const mods = [...document.querySelectorAll('#modSel input')].filter(x => x.checked).map(x => x.value);
+  const hp = Math.max(1, +$('hp0').value || 200);
+  SES = { v: 1, players: [a, b], mods, hp, games: [ENGINE.newMatch([a, b], first, { mods, hp })], cur: 0 };
+  hist = []; fut = []; editTurn = null; sel = [];
+  commit();
+};
+
+/* ---------- 主畫面 ---------- */
+function render() {
+  if (!SES) return renderSetup();
+  $('setup').hidden = true; $('main').hidden = false; $('tools').hidden = false;
+  const m = cur();
+  if (editTurn != null && editTurn >= m.turns.length) editTurn = null;
+  const rep = ENGINE.replay(m);
+  const c = workCtx();
+  $('subTitle').textContent = SES.players[0] + ' vs ' + SES.players[1] + '　第' + (SES.cur + 1) + '局';
+  renderGames();
+  renderBoard(m, rep, c);
+  renderEditBar(m, c);
+  renderTimeline(m, rep);
+  renderOps(m, c);
+  $('bUndo').disabled = !hist.length; $('bRedo').disabled = !fut.length;
+}
+
+function renderGames() {
+  const gs = $('gameSel');
+  gs.innerHTML = SES.games.map((g, i) => {
+    const o = ENGINE.replay(g).final.over;
+    const w = o ? (o.winner < 0 ? '平局' : SES.players[o.winner] + '勝') : '進行中';
+    return '<option value="' + i + '"' + (i === SES.cur ? ' selected' : '') + '>第' + (i + 1) + '局（' + esc(w) + '）</option>';
+  }).join('');
+}
+$('gameSel').onchange = e => { SES.cur = +e.target.value; editTurn = null; sel = []; commit(); };
+
+function hpClass(v, max) { const r = v / max; return r > .5 ? '' : r > .25 ? 'mid' : 'low'; }
+function renderBoard(m, rep, c) {
+  const S = c.S, T = c.T, p = c.p;
+  const side = w => {
+    const cls = 'pc ' + (w === 0 ? 'L' : 'R') + (w === p && !S.over ? ' turn' : '');
+    const sp = S.spirit[w];
+    let chips = '';
+    if (S.shield[w]) chips += '<span class="ch sh">🛡 ' + S.shield[w] + '</span>';
+    chips += '<span class="ch k"><span class="lab">職業</span>' + esc(S.job[w] || '無') + '</span>';
+    const st = S.star[w];
+    chips += '<span class="ch ' + (st != null ? 'e' + st : '') + '"><span class="lab">星辰</span>' + (st != null ? STARS[st].short : '無') + '<span class="stars5">' + [0, 1, 2, 3, 4].map(e => '<b class="' + (S.starHist[w].includes(e) ? 'on' : '') + '" title="' + STARS[e].name + '"></b>').join('') + '</span></span>';
+    if (sp) chips += '<span class="ch ' + (EL.indexOf(sp.k) >= 0 ? 'e' + EL.indexOf(sp.k) : 'bad') + '"><span class="lab">精靈</span>' + sp.k + ' ' + sp.p + '<span class="pips">' + [1, 2, 3, 4, 5, 6].map(i => '<b class="' + (i <= sp.p ? 'on' : '') + '"></b>').join('') + '</span></span>';
+    else chips += '<span class="ch"><span class="lab">精靈</span>無</span>';
+    if (m.settings.mods.includes('pouch')) chips += '<span class="ch">' + (S.pouch[w] ? '<img class="mini-back" src="' + CARD_IMG['牌背'] + '"> 錦囊' : '<span class="lab">錦囊</span>無') + '</span>';
+    if (S.totem[w] != null) chips += '<span class="ch e' + S.totem[w] + '">' + TOTEMS.find(t => t.e === S.totem[w]).name + '</span>';
+    if (S.covered[w]) chips += '<span class="ch st">覆蓋中 ' + S.covered[w].n + '張' + (S.covered[w].form ? '（' + S.covered[w].form + '）' : '') + '</span>';
+    S.statuses.filter(s => s.who === w).forEach(s => { chips += '<span class="ch ' + (['stun', 'nodraw', 'poison', 'lishan', 'guanhuo'].includes(s.k) ? 'bad' : 'st') + '">' + (ENGINE.STATUS_NAME[s.k] || s.k) + ' ' + s.left + (s.unit === 'round' ? '輪' : '') + '</span>'; });
+    // 手牌
+    let hand = S.hand[w];
+    let handTxt = '手牌 ' + hand;
+    if (w === p) handTxt = handFlow(c, w);
+    chips += '<span class="ch hand' + (hand < 0 || hand > 5 ? ' bad' : '') + '">' + handTxt + '</span>';
+    return '<div class="' + cls + '"><div class="top"><div class="nm">' + esc(m.players[w]) + (m.first === w ? ' <span style="font-size:12px;color:var(--sub)">先攻</span>' : '') + '</div><div class="hp">' + S.hp[w] + '<small>/' + S.maxHp + '</small></div></div>'
+      + '<div class="bar"><i class="' + hpClass(S.hp[w], S.maxHp) + '" style="width:' + (S.hp[w] / S.maxHp * 100) + '%"></i></div><div class="chips">' + chips + '</div></div>';
+  };
+  const o = rep.final.over;
+  let center = '<div class="tn">回合<b>' + (c.rec.i + 1) + '</b></div>';
+  center += '<div class="who" style="color:' + (p === 0 ? 'var(--L)' : 'var(--R)') + '">' + (p === 0 ? '◀ ' : '') + esc(m.players[p]) + (p === 1 ? ' ▶' : '') + '</div>';
+  center += '<div class="env" style="' + (S.env != null ? 'background:var(--e' + S.env + 's);color:var(--e' + S.env + ')' : '') + '">' + (S.env != null ? EL[S.env] + '行環境' : '無環境') + '</div>';
+  if (o) center += '<div class="over">' + esc(REPORT.resultText(m, rep)) + '</div>';
+  $('board').innerHTML = side(0) + '<div class="center">' + center + '</div>' + side(1);
+}
+
+function renderEditBar(m, c) {
+  const eb = $('editBar');
+  if (editTurn == null) { eb.hidden = true; return; }
+  eb.hidden = false;
+  eb.innerHTML = '✎ 正在修改第 ' + (editTurn + 1) + ' 回合（' + esc(m.players[c.p]) + '）。上方顯示的是該回合的狀態，修改後後續回合會自動重算。<button class="btn sm" id="bDoneEdit">完成修改</button>';
+  $('bDoneEdit').onclick = () => { editTurn = null; sel = []; render(); };
+}
+
+function renderTimeline(m, rep) {
+  const rows = REPORT.rows(m, rep);
+  const ip = REPORT.initPouch(m, rep);
+  const pre0 = ip[0].on ? '<tr class="pre0' + (ip[0].miss || ip[1].miss ? ' warn' : '') + '" data-pre="1"><td class="n">開局</td><td class="who">雙方</td><td colspan="5"><div class="pre">各覆蓋 1 張錦囊　'
+    + [0, 1].map(w => '<b style="color:var(--' + (w ? 'R' : 'L') + ')">' + esc(m.players[w]) + '</b>：' + (ip[w].card ? esc(ip[w].card) : ip[w].miss ? '<span class="iss">⚠ 未補登</span>' : '<span class="nt">未記錄</span>') + (ip[w].trig ? '<span class="nt">（已觸發）</span>' : '')).join('　')
+    + '</div><div class="nt">點此填入覆蓋的牌；之後觸發會自動回填' + (ip[0].miss || ip[1].miss ? '' : '') + '</div>'
+    + (ip[0].miss || ip[1].miss ? '<div class="iss">⚠ 對局已結束，仍有覆蓋的錦囊沒有記錄是哪一張，請確認並補填</div>' : '') + '</td></tr>' : '';
+  let h = '<table><thead><tr><th>回合</th><th>玩家</th><th style="text-align:left">記錄</th><th>棄牌</th><th>手牌</th><th style="color:var(--L)">' + esc(m.players[0]) + '</th><th style="color:var(--R)">' + esc(m.players[1]) + '</th></tr></thead><tbody>';
+  rows.forEach((r, i) => {
+    const t = rep.turns[i];
+    const cls = ['p' + r.p, r.level || '', r.live ? 'live' : '', editTurn === i ? 'editing' : ''].join(' ');
+    let rec = '';
+    if (r.active.length) rec += '<div class="pre">' + r.active.map(esc).join('<br>') + '</div>';
+    if (r.action) rec += '<div class="act">' + esc(r.action) + (r.result ? ' <span class="nt">' + esc(r.result) + '</span>' : '') + '</div>';
+    if (r.other.length) rec += '<div class="nt">' + r.other.map(esc).join('<br>') + '</div>';
+    if (!rec) rec = r.live ? '<span class="nt">（進行中）</span>' : '<span class="nt">—</span>';
+    if (r.issues.length) rec += r.issues.map(x => '<div class="iss ' + (x.level === 'warn' ? 'w' : '') + '">⚠ ' + esc(x.msg) + '</div>').join('');
+    const hpc = (w) => { const prev = i ? rep.turns[i - 1].after.hp[w] : rep.initial.hp[w]; const d = t.after.hp[w] - prev; return t.after.hp[w] + (d ? '<div class="nt" style="color:' + (d < 0 ? '#b03548' : '#2e9d6a') + '">' + (d > 0 ? '+' : '') + d + '</div>' : ''); };
+    h += '<tr class="' + cls + '" data-i="' + i + '"><td class="n">' + (i + 1) + '</td><td class="who">' + esc(r.player) + '</td><td>' + rec + '</td><td class="c">' + esc(r.discard) + '</td><td class="c">' + (r.hand === '' ? '' : r.hand) + '</td><td class="hp">' + hpc(0) + '</td><td class="hp">' + hpc(1) + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  h = h.replace('<tbody>', '<tbody>' + pre0);
+  const tl = $('tl');
+  const atBottom = tl.scrollTop + tl.clientHeight >= tl.scrollHeight - 30;
+  tl.innerHTML = h;
+  tl.querySelectorAll('tr[data-pre]').forEach(tr => tr.onclick = () => pouch0Dialog());
+  tl.querySelectorAll('tr[data-i]').forEach(tr => tr.onclick = () => {
+    const i = +tr.dataset.i;
+    editTurn = (i === liveIdx() && !m.turns[i].ended) ? null : (editTurn === i ? null : i);
+    sel = []; render();
+  });
+  if (editTurn == null && (atBottom || true)) tl.scrollTop = tl.scrollHeight;
+}
+
+/* ---------- 操作區 ---------- */
+// 本回合手牌變化：回合開始 → 行動前效果 → 行動 → 抽牌 → 最終
+function handFlow(c, w) {
+  const rec = c.rec, S = c.S, T = c.T;
+  const sg = v => (v > 0 ? '+' : '−') + Math.abs(v);
+  const start = rec.before.hand[w];
+  let prev = start, pre = 0, act = 0, acted = false;
+  rec.acts.forEach(ar => {
+    if (!ar.hand) return;
+    const d = ar.hand[w] - prev; prev = ar.hand[w];
+    if (['formation', 'cover', 'job', 'pass'].includes(ar.a.kind)) acted = true;
+    if (ar.a.kind === 'discard') return;
+    if (acted) act += d; else pre += d;
+  });
+  const parts = ['開始 ' + start];
+  if (pre) parts.push('行動前 ' + sg(pre));
+  if (act || acted) parts.push('行動 ' + (act ? sg(act) : '±0'));
+  const cur = prev;
+  const discarded = rec.acts.some(ar => ar.a.kind === 'discard' && !ar.a.none);
+  if (!rec.live) {
+    const N = rec.drawN || 0;
+    parts.push(N ? '抽 +' + (N + 1) + (discarded ? '、棄 −1' : '') : '不抽牌');
+    return '手牌 ' + parts.join(' → ') + ' → <b>' + rec.handEnd + '</b>';
+  }
+  if (S.over) return '手牌 ' + parts.join(' → ') + ' → <b>' + cur + '</b>';
+  const nd = ENGINE.has(S, w, 'nodraw') && !T.cicada || T.noDraw;
+  const n = nd ? 0 : Math.max(0, Math.min(2 + T.drawBonus, 5 - Math.max(0, cur)));
+  parts.push(n ? '抽 +' + (n + 1) + '、棄 −1' : '不抽牌');
+  return '手牌 ' + parts.join(' → ') + ' → <b>' + (Math.max(0, cur) + n) + '</b>' + (editTurn == null ? '<small style="opacity:.7">（預計）</small>' : '');
+}
+function renderOps(m, c) {
+  const S = c.S, T = c.T, p = c.p;
+  const w = $('opsWho'); w.textContent = m.players[p]; w.style.background = p === 0 ? 'var(--L)' : 'var(--R)';
+  const over = S.over && editTurn == null && c.rec.acts.length === 0;
+  // 行動前
+  const o = ENGINE.options(S, m, T);
+  let pre = '';
+  if (m.settings.mods.includes('pouch')) pre += '<button class="pb pouch' + (o.pouch ? '' : ' off') + '" data-k="pouch"><span class="ico">🎴</span>翻開錦囊<small>' + (S.pouch[p] ? (T.pouchUsed ? '本回合已觸發' : '選牌與秘計') : '目前沒有錦囊') + '</small></button>';
+  if (m.settings.mods.includes('retrieve') && o.retrieve) pre += '<button class="pb rt" data-k="retrieve"><span class="ico">♻</span>棄牌回收 ' + o.retrieve + '<small>扣除' + (card(o.retrieve).l * 2) + '點生命' + (ENGINE.abOf(S, T, p, '尋道術') ? '（尋道術減半）' : '') + '</small></button>';
+  (o.starsub || []).forEach(s => { pre += '<button class="pb st e' + s.e + 'c' + (s.ok ? '' : ' off') + '" data-k="starsub" data-id="' + s.src + '"><span class="ico">★</span>' + (s.src === '瞞天' ? '瞞天' : STARS[s.e].name) + '：變屬性<small>選一張' + EL[RULES.MOTHER[s.e]] + '行牌視為' + EL[s.e] + '行（限基礎規則陣法）</small></button>'; });
+  o.abilities.forEach(a => { pre += '<button class="pb ab' + (a.ok ? '' : ' off') + '" data-k="ability" data-id="' + a.id + '"><span class="ico">✦</span>' + a.id + '<small>' + esc(AMAP[a.id].text) + '</small></button>'; });
+  o.spirit.forEach(s => { pre += '<button class="pb sp' + (s.ok ? '' : ' off') + '" data-k="spirit" data-id="' + s.id + '"><span class="ico">✿</span>' + s.id + '（' + s.cost + '）<small>' + esc(s.ok ? (SPIRIT_TEXT[s.id] || '') : (ENGINE.has(S, p, 'lishan') ? '離山中，精靈技能無效' : S.spirit[p] && S.spirit[p].p < s.cost ? '靈力不足' : '本回合已使用精靈技能')) + '</small></button>'; });
+  if (!pre) pre = '<div class="empty">目前沒有可用的行動前效果</div>';
+  $('pre').innerHTML = pre;
+  $('pre').querySelectorAll('.pb').forEach(b => b.onclick = () => onPre(b.dataset.k, b.dataset.id));
+  // 上家覆蓋待補登
+  const cv = S.covered[c.q];
+  const rb = $('revealBox');
+  rb.innerHTML = cv && !cv.form ? '<div class="revealbox">上家覆蓋了 ' + cv.n + ' 張被動術式，行動時翻開<button class="btn sm soft" id="bRev">先補登</button></div>' : '';
+  if ($('bRev')) $('bRev').onclick = () => doReveal(c, true);
+  // 本回合動作
+  const acts = c.rec.acts;
+  $('acts').innerHTML = acts.length ? acts.map((ar, i) => {
+    const lv = ar.issues.some(x => x.level === 'error') ? 'error' : ar.issues.some(x => x.level === 'warn') ? 'warn' : '';
+    return '<li class="' + lv + '"><b>' + esc(ar.text) + '</b>' + (ar.notes.length ? '<div class="nt">' + esc(ar.notes.join('；')) + '</div>' : '')
+      + ar.issues.map(x => '<div class="iss ' + (x.level === 'warn' ? 'w' : '') + '">⚠ ' + esc(x.msg) + '</div>').join('')
+      + (ar.a.kind === 'formation' && ar.a.form === '連環' && !(ar.a.choice && ar.a.choice.pouchCard) ? '<button class="btn sm soft bfp" style="margin-top:4px">補登錦囊牌</button>' : '')
+      + '<button class="x" data-i="' + i + '" title="刪除">✕</button></li>';
+  }).join('') : '<li style="border-style:dashed;color:#a3b3c3">尚無動作</li>';
+  $('acts').querySelectorAll('.x').forEach(b => b.onclick = e => { e.stopPropagation(); delAction(+b.dataset.i); });
+  $('acts').querySelectorAll('.bfp').forEach(b => b.onclick = e => { e.stopPropagation(); backfillPouch(workIdx()); });
+  renderGrid();
+  renderTray();
+  renderCands(m, c);
+  $('bEnd').hidden = editTurn != null;
+  $('bEnd').textContent = S.over ? '結束本回合（對局已分勝負）' : '結束回合 ▶';
+  $('bEnd').disabled = !!(cur().turns[liveIdx()].ended);
+}
+function delAction(i) {
+  snap();
+  cur().turns[workIdx()].actions.splice(i, 1);
+  commit();
+}
+
+function cardBtn(k, extra) {
+  return '<button class="cd" data-c="' + k + '"><img src="' + CARD_IMG[k] + '" alt="' + k + '">' + (extra || '') + '</button>';
+}
+function gridHTML(counts) {
+  let h = '';
+  EL.forEach((e, ei) => {
+    h += '<div class="el" style="color:var(--e' + ei + ')">' + e + '</div>';
+    for (let l = 1; l <= 5; l++) { const k = e + l; const n = counts[k] || 0; h += cardBtn(k, n ? '<span class="cnt">' + n + '</span>' : '').replace('class="cd"', 'class="cd' + (n ? ' on' : '') + '"'); }
+  });
+  return h;
+}
+const cardOrd = k => card(k).e * 10 + card(k).l;
+const sortCards = arr => arr.sort((a, b) => cardOrd(a) - cardOrd(b));
+function slotsHTML(arr, n) {
+  let h = arr.map((k, i) => '<span class="slotc"><img src="' + CARD_IMG[k] + '" alt="' + k + '" title="' + k + '"><button class="x" data-i="' + i + '" title="移除">✕</button></span>').join('');
+  for (let i = arr.length; i < n; i++) h += '<span class="slot"></span>';
+  return h;
+}
+function counts(arr) { const o = {}; arr.forEach(k => { o[k] = (o[k] || 0) + 1; }); return o; }
+function renderGrid() {
+  const g = $('grid');
+  g.innerHTML = gridHTML(counts(sel));
+  g.querySelectorAll('.cd').forEach(b => b.onclick = () => { if (sel.length >= 5) return toast('陣法最多 5 張'); sel.push(b.dataset.c); sortCards(sel); renderGrid(); renderTray(); renderCands(cur(), workCtx()); });
+}
+function renderTray() {
+  const t = $('tray');
+  t.innerHTML = slotsHTML(sel, sel.length ? 0 : 1) + (sel.length ? '<button class="clr" id="bClr">清除</button>' : '');
+  t.querySelectorAll('.x').forEach(x => x.onclick = () => { sel.splice(+x.dataset.i, 1); renderGrid(); renderTray(); renderCands(cur(), workCtx()); });
+  if ($('bClr')) $('bClr').onclick = () => { sel = []; renderGrid(); renderTray(); renderCands(cur(), workCtx()); };
+}
+function renderCands(m, c) {
+  const box = $('cands');
+  const S = c.S, T = c.T, p = c.p;
+  if (!sel.length) {
+    box.innerHTML = '<div class="empty">先在左邊選牌。被動術式若看不到內容，可以直接按下方按鈕只記張數。</div>'
+      + '<button class="cb cov" id="bCovUnknown"><div class="t">覆蓋被動術式（不知道內容）</div><div class="d">覆蓋兩張牌，翻開時再補登</div></button>';
+    $('bCovUnknown').onclick = () => addAction({ kind: 'cover', n: 2 });
+    return;
+  }
+  const X = ENGINE.ctxX(S, m, T, p, {});
+  const fs = RULES.recognize(sel, X);
+  const js = RULES.recognizeJobs(sel, X);
+  let h = '';
+  fs.forEach((r, i) => {
+    if (r.f.cat === 'passive') {
+      h += '<button class="cb cov' + (r.legal ? '' : ' bad') + '" data-f="' + i + '"><div class="t">覆蓋：' + r.f.id + '<span class="tag">被動術式</span></div><div class="d">' + esc(r.legal ? (r.notes.join('、') || '已知內容的覆蓋') : r.reasons.join('、')) + '</div></button>';
+      return;
+    }
+    const pv = preview({ kind: 'formation', form: r.f.id, cards: sel.slice(), pi: r.pi, via: r.notes.join(',') });
+    const pts = pv && /(\d+)點$/.test(pv.text) ? pv.text.match(/(\d+)點$/)[1] + '點' : '';
+    const d = r.legal ? (pv ? pv.notes.filter(n => !/^翻開/.test(n)).join('；') : '') : r.reasons.join('、');
+    h += '<button class="cb' + (r.legal ? '' : ' bad') + '" data-f="' + i + '"><div class="t">' + r.f.id + ' <span class="pts">' + pts + '</span><span class="tag">' + catName(r.f) + (r.notes.length ? '・' + esc(r.notes.join('、')) : '') + '</span></div><div class="d">' + esc(d) + '</div></button>';
+  });
+  js.forEach((r, i) => {
+    h += '<button class="cb job' + (r.legal ? '' : ' bad') + '" data-j="' + i + '"><div class="t">轉職 ' + r.job.id + '<span class="tag">' + (r.path ? r.path + '・' : '') + esc(r.job.costText) + '</span></div><div class="d">' + esc(r.legal ? (r.job.prereq && Array.isArray(r.job.prereq) ? '目前為' + (S.job[p] || '') : '') : r.reasons.join('、')) + '</div></button>';
+  });
+  // 不符條件的選項收進摺疊區，避免干擾
+  const tmp = document.createElement('div'); tmp.innerHTML = h;
+  const bad = [...tmp.querySelectorAll('.cb.bad')];
+  if (bad.length && bad.length < tmp.children.length) {
+    const det = document.createElement('details'); det.className = 'badlist';
+    det.innerHTML = '<summary>其他不符條件的選項（' + bad.length + '）</summary>';
+    bad.forEach(b => det.appendChild(b)); tmp.appendChild(det);
+    h = tmp.innerHTML;
+  }
+  if (sel.length === 2) h += '<button class="cb cov" id="bCovSel"><div class="t">覆蓋被動術式（不指明）</div><div class="d">翻開時再補登是什麼</div></button>';
+  if (!fs.length && !js.length) h = '<div class="empty">這組牌目前無法構成任何陣法或轉職。</div>' + h;
+  box.innerHTML = h;
+  box.querySelectorAll('[data-f]').forEach(b => b.onclick = () => onFormation(fs[+b.dataset.f]));
+  box.querySelectorAll('[data-j]').forEach(b => b.onclick = () => addAction({ kind: 'job', job: js[+b.dataset.j].job.id, cards: sel.slice() }));
+  if ($('bCovSel')) $('bCovSel').onclick = () => addAction({ kind: 'cover', cards: sel.slice() });
+}
+function catName(f) { return f.cat === 'attack' ? (f.atk === 'P' ? '物理攻擊' : f.atk === 'S' ? '特殊攻擊' : f.atk === 'choice' ? '攻擊' : EL[f.atk] + '行攻擊') : f.cat === 'active' ? '主動術式' : '被動術式'; }
+
+// 檢視對方手牌：依對方手牌數（與效果可看張數）列出空牌框
+async function viewFlow(c, name, max) {
+  const oh = Math.max(0, Math.min(5, c.S.hand[1 - c.p]));
+  const n = Math.min(oh, max);
+  if (!n) return [];
+  const ugly = c.S.spirit[c.p] && c.S.spirit[c.p].k === '惡' && !ENGINE.has(c.S, c.p, 'lishan');
+  return pickCards({ title: name + '：看到對方哪些手牌？', sub: '對方手牌 ' + oh + ' 張' + (max < oh ? '，可看 ' + n + ' 張' : '') + (ugly ? '。戲鬧會依最高等級自動扣血' : ''), n, min: 1, skip: '不知道' });
+}
+async function onFormation(r) {
+  const c = workCtx();
+  const a = { kind: 'formation', form: r.f.id, cards: sel.slice(), pi: r.pi, via: r.notes.join(',') };
+  if (r.f.cat === 'passive') return addAction({ kind: 'cover', cards: sel.slice(), form: r.f.id });
+  const choice = {};
+  if (r.f.choice) {
+    const X = ENGINE.ctxX(c.S, cur(), c.T, c.p, {});
+    const ch = r.f.choice(r.cards, X);
+    if (ch) { const v = await pickOption({ title: ch.title, options: ch.options, row: ch.options.length <= 6 }); if (v == null) return; choice[ch.key] = v; }
+  }
+  const VIEW = ['光芒', '暗黑光芒', '混沌', '暗黑混沌', '萬鳴', '鏡鳴', '聖風', '北靈陣‧玄甲', '中靈陣‧黃鱗'];
+  if (VIEW.includes(r.f.id)) {
+    const v = await viewFlow(c, r.f.id, 5);
+    if (v === null) return;
+    if (v.length) choice.viewed = v;
+    const TAKE = { '混沌': [2, '放回牌堆'], '暗黑混沌': [2, '放回牌堆'], '中靈陣‧黃鱗': [1, '拿走'], '聖風': [1, '拿走'], '鏡鳴': [1, '捨棄'], '萬鳴': [1, '捨棄'] }[r.f.id];
+    const oh = Math.max(0, c.S.hand[1 - c.p]);
+    if (TAKE && oh) {
+      const n = Math.min(TAKE[0], oh, v.length || 5);
+      const t = v.length ? await pickFromList({ title: r.f.id + '：' + TAKE[1] + '了哪 ' + n + ' 張？', list: v, n })
+        : await pickCards({ title: r.f.id + '：' + TAKE[1] + '了哪 ' + n + ' 張？', n, min: n, skip: '不知道' });
+      if (t === null) return;
+      if (t.length) choice.taken = t;
+    }
+  }
+  if (r.f.id === '晴風萬里' && choice.keep != null && choice.keep < 5) {
+    const n = 5 - choice.keep;
+    const d = await pickCards({ title: '晴風萬里：捨棄了哪 ' + n + ' 張？', sub: '依序點選，選錯可按牌角 ✕ 取消', n, min: n, skip: '不知道' });
+    if (d === null) return;
+    if (d.length) choice.discards = d;
+  }
+  if (r.f.id === '連環') {
+    const ch = await chainFlow(c);
+    if (!ch) return;
+    Object.assign(choice, ch);
+  }
+  if (Object.keys(choice).length) a.choice = choice;
+  addAction(a);
+}
+
+/* ---------- 行動前效果 ---------- */
+async function onPre(k, id) {
+  const c = workCtx();
+  if (k === 'retrieve') return addAction({ kind: 'retrieve' });
+  if (k === 'starsub') {
+    const e = id === '瞞天' ? c.T.tempStar : c.S.star[c.p]; const me = RULES.MOTHER[e];
+    while (true) {
+      const v = await pickCards({ title: '哪一張' + EL[me] + '行牌視為' + EL[e] + '行？', n: 1 });
+      if (!v) return;
+      if (card(v[0]).e !== me) { toast('只能選' + EL[me] + '行牌'); continue; }
+      return addAction({ kind: 'starsub', card: v[0], src: id });
+    }
+  }
+  if (k === 'pouch') {
+    const known = c.S.pouchFrom[c.p] == null && (cur().pouch0 || [])[c.p];   // 開局已記錄的錦囊
+    const cd = known ? [known] : await pickCards({ title: '錦囊牌是哪一張？', n: 1 });
+    if (!cd) return;
+    if (known) toast('錦囊使用開局記錄的 ' + known);
+    const a = await strategyFlow(c, cd[0]);
+    if (!a) return;
+    fillChainPouch(c.S.pouchFrom && c.S.pouchFrom[c.p], cd[0]);
+    return addAction(Object.assign({ kind: 'pouch', card: cd[0] }, a));
+  }
+  if (k === 'ability') {
+    const def = AMAP[id]; const a = { kind: 'ability', id };
+    for (const inp of def.inputs) {
+      if (inp === 'discard2') { const cc = await pickCards({ title: id + '：捨棄的兩張牌（可略過）', n: 2, skip: true }); if (cc === null) return; if (cc.length) a.cards = cc; }
+      if (inp === 'virtual') { const v = await pickCards({ title: id + '：產生哪一張牌？', n: 1 }); if (!v) return; a.virtual = v[0]; }
+      if (inp === 'card') { const v = await pickCards({ title: id + '：' + cardPrompt(def), n: 1, skip: id === '影切' ? false : true }); if (v === null) return; if (v.length) a.card = v[0]; }
+      if (inp === 'show' && c.S.job[c.p] !== '氣宗') {
+        while (true) {
+          const v = await pickCards({ title: id + '：展示哪一張木或火行牌？', n: 1, skip: '不知道' }); if (v === null) return;
+          if (v.length && ![1, 3].includes(card(v[0]).e)) { toast('只能展示木或火行牌'); continue; }
+          if (v.length) a.card = v[0]; break;
+        }
+      }
+      if (inp === 'qingfeng') {
+        const v = await pickCards({ title: '晴風：展示的牌堆頂是哪一張？', n: 1, skip: '不知道' }); if (v === null) return;
+        if (v.length) { const f = await pickOption({ title: '晴風：' + v[0] + ' 要怎麼處理？', row: true, options: [{ v: 'back', label: '放回牌堆頂' }, { v: 'discard', label: '捨棄' }] }); if (!f) return; a.card = v[0]; a.fate = f; }
+      }
+      if (inp === 'level12') { const v = await pickOption({ title: '降為幾級？', row: true, options: [{ v: 1, label: '1級' }, { v: 2, label: '2級' }] }); if (!v) return; a.level = v; }
+    }
+    return addAction(a);
+  }
+  if (k === 'spirit') {
+    const sp = c.S.spirit[c.p]; const sk = SPIRITS[sp.k].skills.find(s => s.id === id);
+    const a = { kind: 'spirit', id };
+    for (const inp of sk.inputs || []) {
+      if (inp === 'card') { const v = await pickCards({ title: id + '：指定哪一張牌？', n: 1, skip: id === '川流' }); if (v === null) return; if (v.length) a.card = v[0]; }
+      if (inp === 'level') { const v = await pickOption({ title: '絢爛：視為幾級？', row: true, options: [1, 2, 3, 4, 5].map(v => ({ v, label: v + '級' })) }); if (!v) return; a.level = v; }
+      if (inp === 'view2') { const v = await viewFlow(c, id, 2); if (v === null) return; if (v.length) a.viewed = v; }
+      if (inp === 'cards4') { const v = await pickCards({ title: '死兆：捨棄的牌（最多四張）', n: 4, min: 1 }); if (!v) return; a.cards = v; }
+    }
+    return addAction(a);
+  }
+}
+function cardPrompt(def) {
+  return { l4: '捨棄哪一張４級以上的牌？', woodfire: '哪一張木或火行牌？', woodwater: '捨棄哪一張木或水？', fireStar: '捨棄哪一張火或星行牌？', aboveRes: '捨棄哪一張牌？' }[def.cardRule] || '哪一張牌？';
+}
+async function strategyFlow(c, cd) {
+  const ss = RULES.stratsFor(card(cd));
+  const sid = await pickOption({ title: '錦囊 ' + cd + '：選擇秘計', options: ss.map(s => ({ v: s.id, label: '秘計‧' + s.id, sub: s.text })) });
+  if (!sid) return null;
+  const a = { strat: sid };
+  if (sid === '離山') {
+    const t = await pickOption({ title: '離山：指定哪位玩家？', row: true, options: [0, 1].map(w => ({ v: String(w), label: SES.players[w] })) });
+    if (t == null) return null; a.target = +t;
+  }
+  if (sid === '瞞天') {
+    const op = await pickOption({ title: '瞞天：選擇效果', options: [{ v: 'break', label: '破除指定星辰' }, { v: 'gain', label: '本回合獲得指定屬性星辰效果' }] });
+    if (!op) return null;
+    const exist = [0, 1].map(w => c.S.star[w]).filter(x => x != null);
+    const list = op === 'break' ? exist : [0, 1, 2, 3, 4];
+    if (!list.length) { toast('場上沒有星辰'); return null; }
+    const e = await pickOption({ title: op === 'break' ? '破除哪個星辰？' : '獲得哪個星辰的效果？', options: list.map(e => ({ v: String(e), label: STARS[e].name })) });
+    if (e == null) return null; a.starOp = { op, e: +e };
+  }
+  if (sid === '走為') {
+    const op = await pickOption({ title: '走為：選擇效果', options: [{ v: 'clear', label: '破除目前環境' }, { v: 'transfer', label: '捨棄一張牌並轉換為該牌屬性環境' }] });
+    if (!op) return null;
+    a.envOp = { op };
+    if (op === 'transfer') { const v = await pickCards({ title: '捨棄哪一張牌？', n: 1 }); if (!v) return null; a.envOp.card = v[0]; }
+  }
+  if (sid === '牽羊') { const v = await pickCards({ title: '牽羊：從棄牌堆放回的牌（可略過）', n: 2, skip: true }); if (v === null) return null; if (v.length) a.cards = v; }
+  return a;
+}
+// 連環覆蓋的錦囊是秘密：觸發或事後補登時，回填到覆蓋的那一回合
+function chainAction(ti) {
+  const t = ti != null && cur().turns[ti];
+  return t ? t.actions.find(a => a.kind === 'formation' && a.form === '連環') : null;
+}
+function fillChainPouch(ti, cd) {
+  const a = chainAction(ti);
+  if (!a) return;
+  a.choice = a.choice || {};
+  if (a.choice.pouchCard !== cd) { a.choice.pouchCard = cd; toast('已回填到第 ' + (ti + 1) + ' 回合的連環'); }
+}
+async function backfillPouch(ti) {
+  const v = await pickCards({ title: '第 ' + (ti + 1) + ' 回合連環覆蓋的錦囊是哪一張？', n: 1, skip: '仍不知道' });
+  if (!v || !v.length) return false;
+  snap(); fillChainPouch(ti, v[0]); commit(); return true;
+}
+async function chainFlow(c) {
+  const pc = await pickCards({ title: '連環：覆蓋為錦囊的牌', sub: '錦囊是秘密，看不到就略過，之後觸發或對局結束時再補登', n: 1, skip: '略過（秘密）' });
+  if (pc === null) return null;
+  const tc = await pickCards({ title: '連環：觸發秘計的牌（可略過）', n: 1, skip: true });
+  if (tc === null) return null;
+  const ch = { pouchCard: pc[0] || null };
+  if (tc.length) { const s = await strategyFlow(c, tc[0]); if (!s) return null; Object.assign(ch, s, { trigCard: tc[0] }); }
+  return ch;
+}
+
+/* ---------- 翻開被動術式 ---------- */
+async function maybeReveal(c) {
+  const cv = c.S.covered[c.q];
+  if (!cv || cv.form) return true;
+  return doReveal(c, false);
+}
+async function doReveal(c, explicit) {
+  const cv = c.S.covered[c.q];
+  const res = await pickCards({ title: '翻開上家覆蓋的被動術式（' + cv.n + '張）', sub: '選出翻開的牌；不清楚可略過，之後再點該回合補登', n: cv.n, min: 1, skip: true });
+  if (res === null) return explicit ? false : false;
+  if (!res.length) return true;
+  // 用覆蓋當下的狀態辨識
+  const m = cur();
+  const ti = cv.ti;
+  const t = m.turns[ti];
+  const ai = t.actions.findIndex(a => a.kind === 'cover');
+  const m2 = Object.assign({}, m, { turns: m.turns.slice(0, ti + 1).map((x, k) => (k === ti ? { actions: x.actions.slice(0, ai), ended: false } : x)) });
+  const rr = ENGINE.replay(m2).turns[ti];
+  const X = ENGINE.ctxX(rr.after, m2, rr.ctx, rr.p, {});
+  const ps = RULES.recognizePassive(res, X);
+  let form;
+  if (!ps.length) form = await pickOption({ title: '這些牌構成哪一種被動術式？', options: ['防禦', '封印', '反震', '空城', '毒煙'].map(v => ({ v, label: v })) });
+  else if (ps.length === 1) form = ps[0].f.id;
+  else form = await pickOption({ title: '這些牌構成哪一種被動術式？', options: ps.map(r => ({ v: r.f.id, label: r.f.id, sub: r.legal ? r.notes.join('、') : r.reasons.join('、') })) });
+  if (!form) return false;
+  snap();
+  Object.assign(t.actions[ai], { cards: res, form });
+  save();
+  if (explicit) render();
+  return true;
+}
+
+/* ---------- 其他按鈕 ---------- */
+$('bDiscard').onclick = async () => {
+  const v = await pickCards({ title: '本回合棄牌', n: 1, skip: '沒有棄牌' });
+  if (v === null) return;
+  addAction(v.length ? { kind: 'discard', card: v[0] } : { kind: 'discard', none: true });
+};
+$('bPass').onclick = () => addAction({ kind: 'pass' });
+$('bNote').onclick = async () => {
+  const t = await prompt2('備註', '輸入要記錄的文字');
+  if (t) addAction({ kind: 'note', text: t });
+};
+$('bAdjust').onclick = () => adjustDialog();
+$('bEnd').onclick = async () => {
+  const m = cur(); const i = liveIdx();
+  const c = workCtx();
+  const warn = [];
+  if (!c.T.actionDone && !c.S.over) warn.push('本回合還沒有登錄行動');
+  if (!c.T.discarded && !c.T.discardNone && !c.S.over) {
+    const nd = (ENGINE.has(c.S, c.p, 'nodraw') && !c.T.cicada) || c.T.noDraw;
+    const n = nd ? 0 : Math.min(2 + c.T.drawBonus, 5 - Math.max(0, c.S.hand[c.p]));
+    if (n > 0) warn.push('本回合還沒有登錄棄牌');
+  }
+  if (warn.length) { const ok = await confirm2('確定結束回合？', warn.join('、') + '。結束後仍可點選該回合修改。'); if (!ok) return; }
+  snap();
+  m.turns[i].ended = true;
+  const rep = ENGINE.replay(m);
+  if (!rep.final.over) m.turns.push({ actions: [], ended: false });
+  else toast('對局結束：' + REPORT.resultText(m, rep));
+  sel = [];
+  commit();
+  if (rep.final.over) await remindPouches(m);
+};
+async function pouch0Dialog(only) {
+  while (true) {
+    const m = cur(), ip = REPORT.initPouch(m, ENGINE.replay(m));
+    let w = only;
+    if (w == null) {
+      w = await pickOption({ title: '開局覆蓋的錦囊', sub: '雙方開局各有一張覆蓋的錦囊。不知道可以先留空，錦囊觸發時會自動回填；對局結束仍未記錄會提醒補填。',
+        options: [0, 1].map(i => ({ v: String(i), label: m.players[i] + '：' + (ip[i].card || '未記錄') + (ip[i].trig ? '（已觸發）' : '') })) });
+      if (w == null) return false;
+    }
+    w = +w;
+    const v = await pickCards({ title: m.players[w] + ' 開局覆蓋的錦囊是哪一張？', n: 1, skip: '清除／未記錄' });
+    if (v !== null) { snap(); setPouch0(w, v[0]); commit(); }
+    if (only != null) return !!(v && v.length);
+  }
+}
+async function remindPouches(m) {
+  const rep = ENGINE.replay(m);
+  const ip = REPORT.initPouch(m, rep);
+  for (const w of [0, 1]) {
+    if (!ip[w].miss) continue;
+    const ok = await confirm2('補登開局錦囊？', m.players[w] + ' 開局覆蓋的錦囊整局都沒有記錄是哪一張（也沒有觸發），要現在補填嗎？');
+    if (ok) await pouch0Dialog(w);
+  }
+  for (const w of [0, 1]) {
+    const ti = rep.final.pouch[w] ? rep.final.pouchFrom[w] : null;
+    const a = chainAction(ti);
+    if (!a || (a.choice && a.choice.pouchCard)) continue;
+    const ok = await confirm2('補登錦囊？', m.players[w] + ' 在第 ' + (ti + 1) + ' 回合用連環覆蓋的錦囊還沒記錄，要現在回到該回合補登嗎？');
+    if (!ok) continue;
+    editTurn = ti; sel = []; render();
+    await backfillPouch(ti);
+  }
+}
+
+async function adjustDialog() {
+  const c = workCtx();
+  const m = cur();
+  const body = document.createElement('div');
+  body.innerHTML = '<div class="frm"><label>對象</label><select id="ajW">' + [0, 1].map(w => '<option value="' + w + '"' + (w === c.p ? ' selected' : '') + '>' + esc(m.players[w]) + '</option>').join('') + '</select>'
+    + '<label>項目</label><select id="ajF"><option value="hp">生命值</option><option value="shield">防護罩</option><option value="hand">手牌數</option><option value="power">精靈靈力</option><option value="spirit">精靈</option><option value="job">職業</option><option value="star">星辰</option><option value="env">環境</option><option value="pouch">錦囊</option><option value="totem">圖騰</option><option value="status">加上狀態</option><option value="unstatus">移除狀態</option></select>'
+    + '<label>數值</label><div id="ajV"></div><label>說明</label><input id="ajN" placeholder="選填，例如：舊規則效果"></div>';
+  const vbox = () => body.querySelector('#ajV');
+  const fill = () => {
+    const f = body.querySelector('#ajF').value; const w = +body.querySelector('#ajW').value;
+    const S = c.S; let h = '';
+    if (['hp', 'shield', 'hand', 'power'].includes(f)) {
+      const curv = f === 'hp' ? S.hp[w] : f === 'shield' ? S.shield[w] : f === 'hand' ? S.hand[w] : (S.spirit[w] ? S.spirit[w].p : 0);
+      h = '<div style="display:flex;gap:6px"><select id="ajM" style="width:110px"><option value="set">改為</option><option value="add">增減</option></select><input id="ajX" type="number" value="' + curv + '"></div>';
+    } else if (f === 'job') h = '<select id="ajX"><option value="">無職業</option>' + RULES.JOBS.map(j => '<option' + (S.job[w] === j.id ? ' selected' : '') + '>' + j.id + '</option>').join('') + '</select>';
+    else if (f === 'spirit') h = '<select id="ajX"><option value="">無精靈</option>' + Object.keys(SPIRITS).map(k => '<option value="' + k + '">' + k + '精靈</option>').join('') + '</select>';
+    else if (f === 'star') h = '<select id="ajX"><option value="">無星辰</option>' + STARS.map(s => '<option value="' + s.e + '"' + (S.star[w] === s.e ? ' selected' : '') + '>' + s.name + '</option>').join('') + '</select>';
+    else if (f === 'env') h = '<select id="ajX"><option value="">無環境</option>' + EL.map((e, i) => '<option value="' + i + '"' + (S.env === i ? ' selected' : '') + '>' + e + '行環境</option>').join('') + '</select>';
+    else if (f === 'pouch') h = '<select id="ajX"><option value="1">有錦囊</option><option value="">無錦囊</option></select>';
+    else if (f === 'totem') h = '<select id="ajX"><option value="">無圖騰</option>' + TOTEMS.map(t => '<option value="' + t.e + '">' + t.name + '</option>').join('') + '</select>';
+    else if (f === 'status' || f === 'unstatus') h = '<div style="display:flex;gap:6px"><select id="ajX">' + Object.keys(ENGINE.STATUS_NAME).map(k => '<option value="' + k + '">' + ENGINE.STATUS_NAME[k] + '</option>').join('') + '</select>' + (f === 'status' ? '<input id="ajL" type="number" value="1" min="1" style="width:80px" title="回合數">' : '') + '</div>';
+    vbox().innerHTML = h;
+  };
+  body.querySelector('#ajF').onchange = fill; body.querySelector('#ajW').onchange = fill; fill();
+  const ok = await modal({ title: '手動調整', sub: '用於規則引擎沒有涵蓋的情況，該回合會標黃提醒', body, buttons: [{ v: false, label: '取消', cls: 'ghost' }, { v: true, label: '加入', cls: '' }] });
+  if (!ok) return;
+  const f = body.querySelector('#ajF').value, who = +body.querySelector('#ajW').value;
+  const x = body.querySelector('#ajX'); const note = body.querySelector('#ajN').value.trim();
+  const a = { kind: 'adjust', who, field: f === 'unstatus' ? 'status' : f, value: x ? x.value : '', note };
+  if (['hp', 'shield', 'hand', 'power'].includes(f)) { a.mode = body.querySelector('#ajM').value; a.value = +x.value; }
+  if (f === 'status') { a.left = +body.querySelector('#ajL').value || 1; }
+  if (f === 'unstatus') a.mode = 'remove';
+  if (f === 'pouch') a.value = !!x.value;
+  snap(); cur().turns[workIdx()].actions.push(a); commit();
+}
+
+/* ---------- 對話框 ---------- */
+function modal({ title, sub, body, buttons, wide, keepOpen }) {
+  return new Promise(res => {
+    const w = document.createElement('div'); w.className = 'mw';
+    const d = document.createElement('div'); d.className = 'md' + (wide ? ' wide' : '');
+    d.innerHTML = '<div class="hd">' + esc(title) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div><div class="bd"></div><div class="ft"></div>';
+    if (typeof body === 'string') d.querySelector('.bd').innerHTML = body; else if (body) d.querySelector('.bd').appendChild(body);
+    const close = v => { w.remove(); res(v); };
+    (buttons || []).forEach(b => { const bt = document.createElement('button'); bt.className = 'btn sm ' + (b.cls || ''); bt.textContent = b.label; bt.onclick = () => { const v = typeof b.v === 'function' ? b.v() : b.v; if (keepOpen && keepOpen(v)) return; close(v); }; d.querySelector('.ft').appendChild(bt); });
+    w.appendChild(d); w.onclick = e => { if (e.target === w) close(null); };
+    d._close = close;
+    $('modalRoot').appendChild(w);
+  });
+}
+function pickOption({ title, sub, options, row, skip }) {
+  const body = document.createElement('div');
+  body.className = row ? 'optrow' : 'opts';
+  let closer;
+  options.forEach(o => { const b = document.createElement('button'); b.className = 'opt'; b.innerHTML = esc(o.label) + (o.sub ? '<small>' + esc(o.sub) + '</small>' : ''); b.onclick = () => closer(o.v); body.appendChild(b); });
+  const btns = [{ v: null, label: '取消', cls: 'ghost' }];
+  if (skip) btns.push({ v: 0, label: skip, cls: 'soft' });
+  const p = modal({ title, sub, body, buttons: btns });
+  closer = v => { body.closest('.md')._close(v); };
+  return p;
+}
+function pickCards({ title, sub, n, min, skip }) {
+  // 回傳：陣列（可能為空＝略過），或 null（取消）
+  const chosen = [];
+  const body = document.createElement('div');
+  const g = document.createElement('div'); g.className = 'grid'; g.style.justifyContent = 'center';
+  const tray = document.createElement('div'); tray.className = 'slots';
+  body.appendChild(g); body.appendChild(tray);
+  let closer;
+  const draw = () => {
+    g.innerHTML = gridHTML(counts(chosen));
+    g.querySelectorAll('.cd').forEach(b => b.onclick = () => {
+      if (chosen.length >= n) { if (n === 1) chosen.length = 0; else return toast('最多 ' + n + ' 張'); }
+      chosen.push(b.dataset.c); sortCards(chosen); draw();
+      if (n === 1 && !min) closer(chosen.slice());
+    });
+    tray.innerHTML = slotsHTML(chosen, n);
+    tray.querySelectorAll('.x').forEach(x => x.onclick = () => { chosen.splice(+x.dataset.i, 1); draw(); });
+  };
+  draw();
+  const need = min || 1;
+  const btns = [{ v: null, label: '取消', cls: 'ghost' }];
+  if (skip) btns.push({ v: () => [], label: typeof skip === 'string' ? skip : '略過', cls: 'soft' });
+  if (n > 1 || min) btns.push({ v: () => (chosen.length >= need ? chosen.slice() : (toast(min && min === n ? '請選滿 ' + n + ' 張' : '請選牌'), undefined)), label: '確定', cls: '' });
+  return new Promise(res => {
+    const p = modal({ title, sub, body, buttons: btns, wide: true, keepOpen: v => v === undefined });
+    closer = v => body.closest('.md')._close(v);
+    p.then(res);
+  });
+}
+// 從指定的牌（例如看到的手牌）中選 n 張
+function pickFromList({ title, list, n }) {
+  const on = list.map(() => false);
+  const body = document.createElement('div'); body.className = 'slots'; body.style.marginTop = '0';
+  const draw = () => {
+    body.innerHTML = list.map((k, i) => '<button class="cd' + (on[i] ? ' on' : '') + '" data-i="' + i + '" style="width:62px;height:93px"><img src="' + CARD_IMG[k] + '" alt="' + k + '">' + (on[i] ? '<span class="cnt">✓</span>' : '') + '</button>').join('');
+    body.querySelectorAll('.cd').forEach(b => b.onclick = () => { const i = +b.dataset.i; if (!on[i] && on.filter(Boolean).length >= n) { if (n === 1) on.fill(false); else return toast('最多 ' + n + ' 張'); } on[i] = !on[i]; draw(); });
+  };
+  draw();
+  return modal({ title, sub: '點選看到的牌', body, keepOpen: v => v === undefined, buttons: [{ v: null, label: '取消', cls: 'ghost' }, { v: () => [], label: '不知道', cls: 'soft' },
+    { v: () => { const r = list.filter((k, i) => on[i]); return r.length === n ? r : (toast('請選 ' + n + ' 張'), undefined); }, label: '確定', cls: '' }] });
+}
+function confirm2(title, msg) { return modal({ title, body: '<div style="font-size:16px">' + esc(msg) + '</div>', buttons: [{ v: false, label: '取消', cls: 'ghost' }, { v: true, label: '確定', cls: '' }] }); }
+function prompt2(title, ph) {
+  const body = document.createElement('div');
+  body.innerHTML = '<input style="width:100%;font-size:18px;padding:10px;border:2px solid var(--line);border-radius:12px" placeholder="' + esc(ph) + '">';
+  setTimeout(() => body.querySelector('input').focus(), 50);
+  return modal({ title, body, buttons: [{ v: null, label: '取消', cls: 'ghost' }, { v: () => body.querySelector('input').value.trim(), label: '確定', cls: '' }] });
+}
+
+/* ---------- 工具列 ---------- */
+$('bUndo').onclick = () => { if (!hist.length) return; fut.push(JSON.stringify(SES)); SES = JSON.parse(hist.pop()); save(); render(); };
+$('bRedo').onclick = () => { if (!fut.length) return; hist.push(JSON.stringify(SES)); SES = JSON.parse(fut.pop()); save(); render(); };
+$('bNew').onclick = async () => {
+  const last = cur(); const o = ENGINE.replay(last).final.over;
+  if (!o) { const ok = await confirm2('開始新局？', '目前這局尚未分出勝負，仍會保留在對局清單中。'); if (!ok) return; }
+  const f = await pickOption({ title: '第' + (SES.games.length + 1) + '局：誰先攻？', row: true, options: [0, 1].map(w => ({ v: String(w), label: SES.players[w] })) });
+  if (f == null) return;
+  snap();
+  SES.games.push(ENGINE.newMatch(SES.players, +f, { mods: SES.mods, hp: SES.hp }));
+  SES.cur = SES.games.length - 1; editTurn = null; sel = [];
+  commit();
+};
+$('bReset').onclick = async () => {
+  const ok = await confirm2('清除所有資料？', '會刪除這組對手的所有對局記錄（建議先備份或匯出）。');
+  if (!ok) return;
+  SES = null; hist = []; fut = []; editTurn = null; sel = [];
+  localStorage.removeItem(KEY); render();
+};
+function fname(ext) {
+  const d = new Date(); const ds = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+  return '戰局記錄_' + SES.players[0] + '_vs_' + SES.players[1] + '_' + ds + '.' + ext;
+}
+function download(data, name, type) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+$('bHtml').onclick = () => download(REPORT.exportHTML(SES), fname('html'), 'text/html;charset=utf-8');
+$('bXlsx').onclick = () => download(new Blob([REPORT.exportXLSX(SES)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fname('xlsx'));
+$('bBackup').onclick = () => download(JSON.stringify(SES, null, 1), fname('json'), 'application/json');
+$('bRestore').onclick = $('bRestore2').onclick = () => $('fileIn').click();
+$('fileIn').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      let t = rd.result;
+      if (/<html/i.test(t)) { const mm = t.match(/<script type="application\/json" id="cfe-recorder-data">([\s\S]*?)<\/script>/); if (!mm) throw new Error('此網頁沒有記錄資料'); t = mm[1]; }
+      const d = JSON.parse(t);
+      if (!d.games || !d.players) throw new Error('格式不符');
+      if (SES) snap();
+      SES = d; SES.cur = Math.min(SES.cur || 0, SES.games.length - 1); editTurn = null; sel = [];
+      commit(); toast('已還原');
+    } catch (err) { toast('還原失敗：' + err.message); }
+  };
+  rd.readAsText(f); e.target.value = '';
+};
+
+load();
+render();
+</script>
+</body>
+</html>
