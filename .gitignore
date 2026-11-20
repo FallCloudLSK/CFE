@@ -1,0 +1,10 @@
+# 原始碼只保存在本機，GitHub 只放上線成品（cfe-2026-spring/）
+# 若把本機資料夾直接當成 repo 根目錄使用，下列項目不會被加入版本控制
+/src/
+/recorder/
+/decks/
+/tournament/
+/other/
+/README_本機流程.md
+/參考資料/
+/牌圖PNG/
