@@ -1898,8 +1898,8 @@ function resolveStrategy(S, m, T, ar, a, prefix) {
   const p = T.p, q = T.q;
   const cd = a.card ? card(a.card) : null;
   const st = SMAP[a.strat];
-  ar.text = (prefix ? prefix + '' : '') + (st ? st.id : '錦囊') + (cd ? '（' + cs(cd) + '）' : '');
-  if (prefix) ar.text = ar.text; // 連環時文字附加在陣法後
+  // 連環觸發：保留陣法本身的文字（連環＋組成牌），再接上觸發的秘計
+  ar.text = (prefix ? ar.text + '，觸發' : '') + (st ? st.id : '錦囊') + (cd ? '（' + cs(cd) + '）' : '');
   if (!cd) { ar.issues.push(iss('warn', '未登錄錦囊牌')); }
   if (!st) { ar.issues.push(iss('warn', '未選擇秘計')); return; }
   if (cd && (st.by === 'e' ? cd.e : cd.l) !== st.v) ar.issues.push(iss('error', '錦囊牌' + cs(cd) + '不能觸發' + st.id));
