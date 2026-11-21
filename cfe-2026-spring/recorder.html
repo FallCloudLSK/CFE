@@ -680,7 +680,7 @@ def({ id: '舞風', mod: 'conf', size: 2, cat: 'active', pats: [{ m: c => c.leng
   run: E => E.draw(1, '舞風') });
 def({ id: '晴風萬里', mod: 'conf', size: 4, cat: 'active', pats: [{ m: c => H.levels(c, [1, 2, 3, 4]) || H.levels(c, [2, 3, 4, 5]), need: 'form' }],
   choice: () => ({ key: 'keep', title: '晴風萬里：加入手牌幾張？', options: [0, 1, 2, 3, 4, 5].map(v => ({ v, label: v + ' 張' })) }),
-  run: (E, c, o) => { const k = o.choice && o.choice.keep; if (k == null) E.issue('warn', '晴風萬里未輸入加入手牌張數'); else E.handDelta(E.me, +k, '晴風萬里'); E.note('加入手牌' + k + '張'); const d = o.choice && o.choice.discards; if (d && d.length) E.note('捨棄' + d.join('')); } });
+  run: (E, c, o) => { const k = o.choice && o.choice.keep; if (k == null) E.issue('warn', '晴風萬里未輸入加入手牌張數'); else E.handDelta(E.me, +k, '晴風萬里'); E.note('加入手牌' + k + '張'); const d = o.choice && o.choice.discards; if (d && d.length) E.note('捨棄' + d.join('') + (k != null && d.length < 10 - k ? '（另' + (10 - k - d.length) + '張未記）' : '')); } });
 def({ id: '虛空絕壁術', mod: 'conf', size: 3, cat: 'active', voidArt: true, pats: [{ m: c => c.length === 3 && H.sameL(c), need: 'form' }],
   run: E => E.voidWall() });
 def({ id: '虛空歸無術', mod: 'conf', size: 3, cat: 'active', voidArt: true, pats: [{ m: c => c.length === 3 && H.sameL(c), need: 'form' }],
@@ -802,7 +802,7 @@ job({ id: '毒師', mod: 'jianghu', prereq: JH, costText: '兩張不同行１級
 job({ id: '毒聖', mod: 'jianghu', legend: true, prereq: ['毒師'], costText: '三張不同行１級牌', cost: c => c.length === 3 && H.diffE(c) && c.every(x => x.l === 1),
   inherit: ['毒師'], ab: ['毒絕'], forms: ['殘霜手', '閻王令'] });
 // 匯流世代
-job({ id: '調律師', mod: 'conf', prereq: 'none', costText: '餘行3', cost: (c, X) => X.res && H.elemSum(c, X.res.e, 3),
+job({ id: '調律師', mod: 'conf', prereq: null, costText: '餘行3', cost: (c, X) => X.res && H.elemSum(c, X.res.e, 3),
   ab: ['調律'], forms: ['鏡鳴', '森鳴', '淙鳴', '煌鳴', '垠鳴'] });
 job({ id: '易弦師', mod: 'conf', prereq: ['調律師'], costText: '餘行6', cost: (c, X) => X.res && H.elemSum(c, X.res.e, 6),
   inherit: ['調律師'], ab: ['易弦'], forms: ['千鳴'] });
@@ -813,7 +813,7 @@ job({ id: '道法師', mod: 'conf', prereq: ['尋道者', '法師'], costText: '
   inherit: ['尋道者', '法師'], forms: ['禁錮法陣'], limited: { '禁錮法陣': 1 } });
 job({ id: '道法聖', mod: 'conf', legend: true, prereq: ['道法師'], costText: '木5火5', cost: c => H.twoElemSum(c, 1, 5, 3, 5),
   inherit: ['尋道者', '法師', '道法師'], ab: ['道法心生'], forms: ['無盡法陣'] });
-job({ id: '晴風士', mod: 'conf', prereq: 'none', costText: '１２、２３、３４或４５',
+job({ id: '晴風士', mod: 'conf', prereq: null, costText: '１２、２３、３４或４５',
   cost: c => c.length === 2 && Math.abs(c[0].l - c[1].l) === 1, ab: ['晴風'], forms: ['舞風'] });
 job({ id: '晴風使', mod: 'conf', prereq: ['晴風士'], costText: '１２３、２３４或３４５',
   cost: c => H.levels(c, [1, 2, 3]) || H.levels(c, [2, 3, 4]) || H.levels(c, [3, 4, 5]),
@@ -1317,6 +1317,7 @@ const handlers = {
     if (stunned(S, T, p)) ar.issues.push(iss('error', '無法行動時不能使用發動能力'));
     if (T.actionDone) ar.issues.push(iss('error', '發動能力須於行動前'));
     T.abilityUsed = a.id;
+    if (def.limited && a.reshuffled && (S.uses[p][a.id] || 0) > 0) { S.uses[p][a.id] = 0; ar.notes.push('牌堆已洗牌：恢復' + a.id + '使用次數'); }
     if (def.limited) useLimited(S, T, ar, p, a.id);
     const c = a.card ? card(a.card) : null;
     const needCard = () => { if (!c) ar.issues.push(iss('warn', '未登錄' + a.id + '所捨棄的牌')); };
@@ -1562,6 +1563,7 @@ function doFormation(S, m, mods, T, a, ar) {
 
   S.lastForm[p] = { id: f.id, cat: f.cat, atk: isAtk ? atkType : null, size: f.size === 0 ? 0 : (r.cards.filter(x => !x.virtual).length + r.cards.filter(x => x.dup).length * 0) || printed.length, ruleSize: f.size, cards: printed.map(cs), turn: T.i, basic: !!f.basic };
   S.lastForm[p].size = printed.length + (r.cards.some(x => x.virtual) ? 1 : 0);
+  if (f.id === '幻化' && T.metaEff) S.lastForm[p].eff = T.metaEff;
 }
 
 /* 翻開上家的被動術式，並彙整本回合行動受到的反制效果 */
@@ -1696,7 +1698,7 @@ function makeE(S, m, T, ar, o, fx, f, atkType) {
       if (vw && vw.length) ar.notes.push('看到' + cardsText(vw.map(card)));
       const tk = o.choice && o.choice.taken;
       if (tk && tk.length) {
-        const verb = { '混沌': '放回牌堆', '暗黑混沌': '放回牌堆', '中靈陣‧黃鱗': '拿走', '聖風': '拿走', '鏡鳴': '捨棄', '萬鳴': '捨棄' }[f.id] || '選了';
+        const verb = { '混沌': '放回牌堆', '暗黑混沌': '放回牌堆', '中靈陣‧黃鱗': '拿走', '聖風': '拿走', '鏡鳴': '捨棄', '千鳴': '鏡鳴捨棄', '萬鳴': '捨棄' }[f.id] || '選了';
         ar.notes.push(verb + cardsText(tk.map(card)));
         if (vw && vw.length) { const pool = vw.slice(); if (!tk.every(k => { const i = pool.indexOf(k); if (i < 0) return false; pool.splice(i, 1); return true; })) ar.issues.push(iss('warn', '選的牌不在看到的牌之中')); }
       }
@@ -1731,9 +1733,13 @@ function metamorph(S, m, T, ar, o, fx, c) {
   const q = T.q;
   const lf = S.lastForm[q];
   if (!lf || lf.turn !== T.i - 1 || !lf.basic) { ar.notes.push('上家上回合沒有施展基礎規則陣法，無可複製'); return; }
-  const f2 = FMAP[lf.id];
+  // 幻化複製了某陣法後，該幻化之效果即等同該陣法：下家再幻化時複製的是那個陣法
+  const effId = lf.eff || lf.id;
+  const f2 = FMAP[effId];
   if (!f2) { ar.notes.push('無可複製（上家陣法未知）'); return; }
-  ar.notes.push('複製' + f2.id);
+  if (f2.id === '幻化') { ar.notes.push('上家的幻化沒有複製到任何陣法，無可複製'); return; }
+  T.metaEff = f2.id;
+  ar.notes.push('複製' + f2.id + (effId !== lf.id ? '（經由' + lf.id + '）' : ''));
   if (f2.cat === 'passive') {
     if (f2.counter) S.statuses.push({ who: q, k: f2.counter, left: 1, unit: 'turn', src: '幻化' });
     return;
@@ -1765,8 +1771,8 @@ function doAttack(S, T, ar, o, fx, f, type, pts) {
   const shielded = S.shield[q] > 0;
   if (elemental && S.env != null) {
     if (S.env === type) {
-      if (!beast && S.totem[q] === type) parts.push(TOTEMS.find(t => t.e === type).name + '：不因環境加倍');
-      else { d *= 2; parts.push('環境雙倍'); }
+      if (!beast && S.totem[q] === type && !shielded) parts.push(TOTEMS.find(t => t.e === type).name + '：不因環境加倍');
+      else { d *= 2; parts.push(!beast && S.totem[q] === type ? '環境雙倍（圖騰不保護防護罩）' : '環境雙倍'); }
     }
     if (MOTHER[S.env] === type) {
       if (!beast && S.totem[p] === type) { parts.push(TOTEMS.find(t => t.e === type).name + '：不改為回復（圖騰捨棄）'); S.totem[p] = null; }
@@ -2666,23 +2672,25 @@ async function onFormation(r) {
     if (ch) { const v = await pickOption({ title: ch.title, options: ch.options, row: ch.options.length <= 6 }); if (v == null) return; choice[ch.key] = v; }
   }
   const VIEW = ['光芒', '暗黑光芒', '混沌', '暗黑混沌', '萬鳴', '鏡鳴', '聖風', '北靈陣‧玄甲', '中靈陣‧黃鱗'];
-  if (VIEW.includes(r.f.id)) {
-    const v = await viewFlow(c, r.f.id, 5);
+  // 千鳴：自己的五鳴術或指定的另一個五鳴術是鏡鳴時，也要看牌、捨棄
+  const qianMirror = r.f.id === '千鳴' && (choice.res === '鏡鳴' || (ENGINE.ctxX(c.S, cur(), c.T, c.p, {}).res || {}).e === 0);
+  if (VIEW.includes(r.f.id) || qianMirror) {
+    const v = await viewFlow(c, qianMirror ? '千鳴（鏡鳴）' : r.f.id, 5);
     if (v === null) return;
     if (v.length) choice.viewed = v;
-    const TAKE = { '混沌': [2, '放回牌堆'], '暗黑混沌': [2, '放回牌堆'], '中靈陣‧黃鱗': [1, '拿走'], '聖風': [1, '拿走'], '鏡鳴': [1, '捨棄'], '萬鳴': [1, '捨棄'] }[r.f.id];
+    const TAKE = { '混沌': [2, '放回牌堆'], '暗黑混沌': [2, '放回牌堆'], '中靈陣‧黃鱗': [1, '拿走'], '聖風': [1, '拿走'], '鏡鳴': [1, '捨棄'], '千鳴': [1, '捨棄'], '萬鳴': [1, '捨棄'] }[r.f.id];
     const oh = Math.max(0, c.S.hand[1 - c.p]);
     if (TAKE && oh) {
       const n = Math.min(TAKE[0], oh, v.length || 5);
-      const t = v.length ? await pickFromList({ title: r.f.id + '：' + TAKE[1] + '了哪 ' + n + ' 張？', list: v, n })
-        : await pickCards({ title: r.f.id + '：' + TAKE[1] + '了哪 ' + n + ' 張？', n, min: n, skip: '不知道' });
+      const t = v.length ? await pickFromList({ title: (qianMirror ? '千鳴（鏡鳴）' : r.f.id) + '：' + TAKE[1] + '了哪 ' + n + ' 張？', list: v, n })
+        : await pickCards({ title: (qianMirror ? '千鳴（鏡鳴）' : r.f.id) + '：' + TAKE[1] + '了哪 ' + n + ' 張？', n, min: n, skip: '不知道' });
       if (t === null) return;
       if (t.length) choice.taken = t;
     }
   }
-  if (r.f.id === '晴風萬里' && choice.keep != null && choice.keep < 5) {
-    const n = 5 - choice.keep;
-    const d = await pickCards({ title: '晴風萬里：捨棄了哪 ' + n + ' 張？', sub: '依序點選，選錯可按牌角 ✕ 取消', n, min: n, skip: '不知道' });
+  if (r.f.id === '晴風萬里' && choice.keep != null && choice.keep < 10) {
+    const n = 10 - choice.keep;
+    const d = await pickCards({ title: '晴風萬里：抽10張，捨棄了哪 ' + n + ' 張？', sub: '可略過不知道的牌；依序點選，選錯可按牌角 ✕ 取消', n, min: n, skip: '不知道' });
     if (d === null) return;
     if (d.length) choice.discards = d;
   }
@@ -2720,6 +2728,11 @@ async function onPre(k, id) {
   }
   if (k === 'ability') {
     const def = AMAP[id]; const a = { kind: 'ability', id };
+    if (id === '順風' && ENGINE.limitedLeft(c.S, c.p, id) <= 0) {
+      const sh = await pickOption({ title: '順風使用次數已用完：牌堆是否已洗牌？', sub: '洗牌後可恢復一次順風', row: true, options: [{ v: 'yes', label: '已洗牌（恢復次數）' }, { v: 'no', label: '尚未洗牌' }] });
+      if (!sh) return;
+      if (sh === 'yes') a.reshuffled = true;
+    }
     for (const inp of def.inputs) {
       if (inp === 'discard2') { const cc = await pickCards({ title: id + '：捨棄的兩張牌（可略過）', n: 2, skip: true }); if (cc === null) return; if (cc.length) a.cards = cc; }
       if (inp === 'virtual') { const v = await pickCards({ title: id + '：產生哪一張牌？', n: 1 }); if (!v) return; a.virtual = v[0]; }
