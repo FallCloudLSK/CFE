@@ -2134,6 +2134,13 @@ function build(sheets, styles) {
         const s = o.s != null && idx[o.s] != null ? ' s="' + idx[o.s] + '"' : '';
         if (o.v === '' || o.v == null) x += '<c r="' + ref + '"' + s + '/>';
         else if (typeof o.v === 'number') x += '<c r="' + ref + '"' + s + '><v>' + o.v + '</v></c>';
+        else if (o.rt) {
+          const st = styles[o.s] || {};
+          x += '<c r="' + ref + '"' + s + ' t="inlineStr"><is>' + o.rt.map(r => {
+            const col = r.c || st.color, b = r.b || st.bold;
+            return '<r><rPr>' + (b ? '<b/>' : '') + '<sz val="' + (st.size || 11) + '"/>' + (col ? '<color rgb="FF' + col + '"/>' : '') + '<rFont val="Microsoft JhengHei"/></rPr><t xml:space="preserve">' + esc(r.t) + '</t></r>';
+          }).join('') + '</is></c>';
+        }
         else x += '<c r="' + ref + '"' + s + ' t="inlineStr"><is><t xml:space="preserve">' + esc(o.v) + '</t></is></c>';
       });
       x += '</row>';
@@ -2177,9 +2184,9 @@ const ACTION = ['formation', 'cover', 'job', 'pass'];
 function sideInfo(S, w) {
   const sp = S.spirit[w];
   return {
-    hp: S.hp[w], shield: S.shield[w] || 0, job: S.job[w] || '', star: S.star[w] != null ? STARS[S.star[w]].short : '',
-    spirit: sp ? sp.k + '(' + sp.p + ')' : '', pouch: S.pouch[w] ? '有' : '', hand: S.hand[w],
-    totem: S.totem[w] != null ? TOTEMS.find(t => t.e === S.totem[w]).name.replace('圖騰', '') : '',
+    hp: S.hp[w], shield: S.shield[w] || 0, job: S.job[w] || '', star: S.star[w] != null ? '★' + STARS[S.star[w]].short : '', starE: S.star[w] != null ? S.star[w] : -1,
+    spirit: sp ? sp.k + '(' + sp.p + ')' : '', spiritE: sp ? EL.indexOf(sp.k) : -1, pouch: S.pouch[w] ? '有' : '', hand: S.hand[w],
+    totem: S.totem[w] != null ? TOTEMS.find(t => t.e === S.totem[w]).name.replace('圖騰', '') : '', totemE: S.totem[w] != null ? S.totem[w] : -1,
     status: S.statuses.filter(s => s.who === w).map(s => (EN.STATUS_NAME[s.k] || s.k) + s.left).join(' '),
   };
 }
@@ -2199,7 +2206,7 @@ function rows(m, rep) {
     const S = t.after;
     r.hand = t.live ? '' : t.handEnd;
     r.L = sideInfo(S, 0); r.R = sideInfo(S, 1);
-    r.env = S.env != null ? EL[S.env] + '行' : '';
+    r.env = S.env != null ? EL[S.env] + '行' : ''; r.envE = S.env != null ? S.env : -1;
     return r;
   });
 }
@@ -2229,8 +2236,33 @@ function resultText(m, rep) {
   return m.players[o.winner] + ' 獲勝（' + o.reason + '，第' + (o.turn + 1) + '回合）';
 }
 
-/* ---------- 網頁匯出 ---------- */
+/* ---------- 五行配色 ---------- */
+// 金＝銀灰（代表白）、木＝綠、水＝藍、火＝紅、土＝黃褐；皆選可在白底清楚閱讀的色階
+const EC = ['6F7A86', '2E9A45', '2B7FD0', 'D4472A', 'A67C00'];
+const CARD_RUN = /((?:[金木水火土][1-5])+)/;      // 連續的牌（如 水3水3、金1火2土5）
+const CARD_ONE = /[金木水火土][1-5]/g;
+// 文字 → 片段陣列：{t, e}（e＝五行索引，-1 為一般文字）、{t, run:true}（牌組外框記號）
+function cardParts(text) {
+  const out = [];
+  String(text == null ? '' : text).split(CARD_RUN).forEach((seg, i) => {
+    if (!seg) return;
+    if (i % 2 === 0) { out.push({ t: seg, e: -1 }); return; }
+    out.push({ run: 'start' });
+    seg.match(CARD_ONE).forEach(c => out.push({ t: c, e: EL.indexOf(c[0]) }));
+    out.push({ run: 'end' });
+  });
+  return out;
+}
 const escH = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function cardsHTML(text) {
+  return cardParts(text).map(p => p.run ? (p.run === 'start' ? '<span class="cds">' : '</span>') : p.e < 0 ? escH(p.t) : '<span class="e' + p.e + '">' + escH(p.t) + '</span>').join('');
+}
+function elHTML(text, e) { return !text ? '' : e >= 0 ? '<span class="el e' + e + '">' + escH(text) + '</span>' : escH(text); }
+// xlsx 富文字：單一格內多色（Excel 無法替部分文字加底色，所以牌組前後加上［ ］括起來）
+function cardsRT(text, bold) {
+  return cardParts(text).map(p => p.run ? { t: p.run === 'start' ? '［' : '］', c: '9AA6B2', b: true } : p.e < 0 ? { t: p.t } : { t: p.t, c: EC[p.e], b: true });
+}
+function elRT(text, e) { return !text ? '' : e >= 0 ? { rt: [{ t: text, c: EC[e], b: true }] } : text; }
 function exportHTML(session, opts) {
   opts = opts || {};
   const games = session.games;
@@ -2242,16 +2274,16 @@ function exportHTML(session, opts) {
     body += '<section><h2>第' + (gi + 1) + '局 <span class="res">' + escH(resultText(m, rep)) + '</span></h2>';
     body += '<div class="meta">規則版本：' + escH(m.ruleVer || R.RULE_VERSION) + '　先攻：' + escH(m.players[m.first]) + '　初始生命：' + m.settings.hp + (m.note ? '　備註：' + escH(m.note) : '') + (REPORT.initPouchText(m, rep) ? '<br>' + escH(REPORT.initPouchText(m, rep)) : '') + '</div>';
     body += '<div class="tw"><table><thead><tr><th rowspan="2">回合</th><th rowspan="2">玩家</th><th rowspan="2">主動效果</th><th rowspan="2">行動</th><th rowspan="2">結果</th><th rowspan="2">棄牌</th><th rowspan="2">手牌</th>'
-      + '<th colspan="6" class="l">' + escH(m.players[0]) + '</th><th colspan="6" class="r">' + escH(m.players[1]) + '</th><th rowspan="2">環境</th></tr><tr>'
-      + ['生命', '護罩', '職業', '星辰', '精靈', '錦囊'].map(h => '<th class="l">' + h + '</th>').join('')
-      + ['生命', '護罩', '職業', '星辰', '精靈', '錦囊'].map(h => '<th class="r">' + h + '</th>').join('') + '</tr></thead><tbody>';
+      + '<th colspan="7" class="l">' + escH(m.players[0]) + '</th><th colspan="7" class="r">' + escH(m.players[1]) + '</th><th rowspan="2">環境</th></tr><tr>'
+      + ['生命', '護罩', '職業', '星辰', '精靈', '圖騰', '錦囊'].map(h => '<th class="l">' + h + '</th>').join('')
+      + ['生命', '護罩', '職業', '星辰', '精靈', '圖騰', '錦囊'].map(h => '<th class="r">' + h + '</th>').join('') + '</tr></thead><tbody>';
     rs.forEach(r => {
       const cls = (r.p === 0 ? 'pl' : 'pr') + (r.level ? ' ' + r.level : '');
       const iss = r.issues.length ? '<div class="iss">' + r.issues.map(x => '⚠ ' + escH(x.msg)).join('<br>') + '</div>' : '';
-      const side = s => '<td class="hp">' + s.hp + '</td><td>' + (s.shield || '') + '</td><td>' + escH(s.job) + '</td><td>' + escH(s.star) + '</td><td>' + escH(s.spirit) + '</td><td>' + (s.pouch ? '有' : '') + '</td>';
-      body += '<tr class="' + cls + '"><td class="n">' + (r.i + 1) + '</td><td class="who">' + escH(r.player) + '</td><td class="tx">' + r.active.map(escH).join('<br>') + '</td>'
-        + '<td class="tx act">' + escH(r.action) + iss + '</td><td class="tx">' + escH([r.result].concat(r.other).filter(Boolean).join('；')) + '</td><td>' + escH(r.discard) + '</td><td>' + (r.hand === '' ? '' : r.hand) + '</td>'
-        + side(r.L) + side(r.R) + '<td>' + escH(r.env) + '</td></tr>';
+      const side = s => '<td class="hp">' + s.hp + '</td><td class="sd">' + (s.shield || '') + '</td><td class="sd">' + escH(s.job) + '</td><td class="sd">' + elHTML(s.star, s.starE) + '</td><td class="sd">' + elHTML(s.spirit, s.spiritE) + '</td><td class="sd">' + elHTML(s.totem, s.totemE) + '</td><td class="sd">' + (s.pouch ? '有' : '') + '</td>';
+      body += '<tr class="' + cls + '"><td class="n">' + (r.i + 1) + '</td><td class="who">' + escH(r.player) + '</td><td class="tx">' + r.active.map(cardsHTML).join('<br>') + '</td>'
+        + '<td class="tx act">' + cardsHTML(r.action) + iss + '</td><td class="tx">' + cardsHTML([r.result].concat(r.other).filter(Boolean).join('；')) + '</td><td class="dc">' + cardsHTML(r.discard) + '</td><td>' + (r.hand === '' ? '' : r.hand) + '</td>'
+        + side(r.L) + side(r.R) + '<td class="sd">' + elHTML(r.env, r.envE) + '</td></tr>';
     });
     body += '</tbody></table></div></section>';
   });
@@ -2263,9 +2295,12 @@ section{padding:14px 18px}h2{color:#1d4f8a;font-size:20px;margin:6px 0}h2 .res{f
 .meta{color:#6b7f95;font-size:14px;margin-bottom:8px}.tw{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #c9d9e8;padding:4px 5px;text-align:center;vertical-align:middle}
 th{background:#f1f7fc;color:#1d4f8a}th.l{background:#e6f1fc}th.r{background:#fdf0e6}
-td.tx{text-align:left;min-width:120px}td.act{min-width:180px;font-weight:600}td.n{font-weight:700;color:#6b7f95}td.who{font-weight:700;white-space:nowrap}td.hp{font-weight:800;font-size:14px}
+td.tx{text-align:left;min-width:120px;line-height:1.7}td.act{min-width:180px;font-weight:600}td.n{font-weight:700;color:#6b7f95}td.who{font-weight:700;white-space:nowrap}td.hp{font-weight:800;font-size:14px}
+td.sd{white-space:nowrap}td.dc{min-width:96px}
 tr.pl td.who{color:#2f74c0}tr.pr td.who{color:#c0702f}tr.pl{background:#fafcff}tr.pr{background:#fffcf8}
 tr.error td{background:#fde2e4!important}tr.warn td{background:#fff6d9!important}.iss{color:#c0392b;font-weight:500;font-size:12px;margin-top:2px}
+.el{font-weight:700}.cds{display:inline-block;background:#f1f6fb;border:1px solid #c3d3e3;border-radius:5px;padding:0 4px;margin:0 1px;font-weight:700;white-space:nowrap}
+.e0{color:#6F7A86}.e1{color:#2E9A45}.e2{color:#2B7FD0}.e3{color:#D4472A}.e4{color:#A67C00}
 footer{text-align:center;color:#8aa0b6;font-size:12px;padding:10px}
 @media print{body{background:#fff;padding:0}.wrap{box-shadow:none}table{font-size:10px}section{page-break-inside:auto}tr{page-break-inside:avoid}}`;
   const data = JSON.stringify(session).replace(/</g, '\\u003c');
@@ -2291,26 +2326,28 @@ function exportXLSX(session) {
   const sheets = session.games.map((m, gi) => {
     const rep = EN.replay(m);
     const rs = rows(m, rep).filter(r => !r.live || r.action || r.active.length);
-    const head1 = ['回合', '玩家', '主動效果', '行動', '結果', '棄牌', '手牌', m.players[0], '', '', '', '', '', m.players[1], '', '', '', '', '', '環境', '問題'];
-    const sub = ['生命', '護罩', '職業', '星辰', '精靈', '錦囊'];
+    const head1 = ['回合', '玩家', '主動效果', '行動', '結果', '棄牌', '手牌', m.players[0], '', '', '', '', '', '', m.players[1], '', '', '', '', '', '', '環境', '問題'];
+    const sub = ['生命', '護罩', '職業', '星辰', '精靈', '圖騰', '錦囊'];
     const rowsX = [
       [{ v: session.players[0] + ' vs ' + session.players[1] + '　第' + (gi + 1) + '局', s: 'title' }],
       [{ v: '規則版本：' + (m.ruleVer || R.RULE_VERSION) + '　先攻：' + m.players[m.first] + '　結果：' + resultText(m, rep) + '　初始生命：' + m.settings.hp + (REPORT.initPouchText(m, rep) ? '　' + REPORT.initPouchText(m, rep) : ''), s: 'meta' }],
-      head1.map((v, i) => ({ v, s: i >= 7 && i < 13 ? 'hl' : i >= 13 && i < 19 ? 'hr' : 'h' })),
-      head1.map((v, i) => ({ v: i >= 7 && i < 19 ? sub[(i - 7) % 6] : '', s: i >= 7 && i < 13 ? 'hl' : i >= 13 && i < 19 ? 'hr' : 'h' })),
+      head1.map((v, i) => ({ v, s: i >= 7 && i < 14 ? 'hl' : i >= 14 && i < 21 ? 'hr' : 'h' })),
+      head1.map((v, i) => ({ v: i >= 7 && i < 21 ? sub[(i - 7) % 7] : '', s: i >= 7 && i < 14 ? 'hl' : i >= 14 && i < 21 ? 'hr' : 'h' })),
     ];
     rs.forEach(r => {
       const side = r.p === 0 ? 'l' : 'r';
       const bad = r.level === 'error' ? 'err' : r.level === 'warn' ? 'warn' : null;
       const c = bad ? bad + 'c' : 'c' + side, t = bad || 't' + side;
-      const sv = (s) => [{ v: s.hp, s: bad ? bad + 'c' : 'hp' }, { v: s.shield || '', s: c }, { v: s.job, s: c }, { v: s.star, s: c }, { v: s.spirit, s: c }, { v: s.pouch ? '有' : '', s: c }];
-      rowsX.push([{ v: r.i + 1, s: c }, { v: r.player, s: bad ? c : 'who' + side.toUpperCase() }, { v: r.active.join('\n'), s: t }, { v: r.action, s: t },
-        { v: [r.result].concat(r.other).filter(Boolean).join('；'), s: t }, { v: r.discard, s: c }, { v: r.hand === '' ? '' : r.hand, s: c }]
-        .concat(sv(r.L), sv(r.R), [{ v: r.env, s: c }, { v: r.issues.map(x => x.msg).join('；'), s: bad ? bad : 'iss' }]));
+      const rc = (txt, e) => Object.assign({ s: c }, e >= 0 && txt ? { v: txt, rt: [{ t: txt, c: EC[e], b: true }] } : { v: txt });
+      const sv = (s) => [{ v: s.hp, s: bad ? bad + 'c' : 'hp' }, { v: s.shield || '', s: c }, { v: s.job, s: c }, rc(s.star, s.starE), rc(s.spirit, s.spiritE), rc(s.totem, s.totemE), { v: s.pouch ? '有' : '', s: c }];
+      const rt = (txt, st) => { const pts = cardsRT(txt); return pts.some(x => x.c) ? { v: txt, rt: pts, s: st } : { v: txt, s: st }; };
+      rowsX.push([{ v: r.i + 1, s: c }, { v: r.player, s: bad ? c : 'who' + side.toUpperCase() }, rt(r.active.join('\n'), t), rt(r.action, t),
+        rt([r.result].concat(r.other).filter(Boolean).join('；'), t), rt(r.discard, c), { v: r.hand === '' ? '' : r.hand, s: c }]
+        .concat(sv(r.L), sv(r.R), [rc(r.env, r.envE), { v: r.issues.map(x => x.msg).join('；'), s: bad ? bad : 'iss' }]));
     });
-    const merges = ['A1:U1', 'A2:U2', 'H3:M3', 'N3:S3'];
-    ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'T', 'U'].forEach(cn => merges.push(cn + '3:' + cn + '4'));
-    return { name: '第' + (gi + 1) + '局', cols: [6, 10, 26, 30, 34, 8, 6, 7, 6, 9, 7, 8, 6, 7, 6, 9, 7, 8, 6, 7, 30], rows: rowsX, merges, freeze: { row: 4, col: 2 }, heights: { 0: 24 } };
+    const merges = ['A1:W1', 'A2:W2', 'H3:N3', 'O3:U3'];
+    ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'V', 'W'].forEach(cn => merges.push(cn + '3:' + cn + '4'));
+    return { name: '第' + (gi + 1) + '局', cols: [6, 10, 26, 30, 34, 8, 6, 7, 6, 9, 8, 8, 7, 6, 7, 6, 9, 8, 8, 7, 6, 7, 30], rows: rowsX, merges, freeze: { row: 4, col: 2 }, heights: { 0: 24 } };
   });
   return XL.build(sheets, XSTYLE);
 }
