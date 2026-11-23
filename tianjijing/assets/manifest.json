@@ -460,7 +460,7 @@
  },
  "poseScale": {},
  "pack": {
-  "base": "https://WORKER-URL.workers.dev/",
+  "base": "https://tianjijing-assets.fallcloud-lsk.workers.dev/",
   "k": "8KDCYOPvD2LUBxL6+EMSouvYTJWzVMh1pPkasG58HRk=",
   "bundles": {
    "avatar": "avatar.084c2e82f5.bin",
