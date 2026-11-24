@@ -1,6 +1,6 @@
 {
  "version": 1,
- "note": "五行天機鏡上線版：素材為加密圖集，由 Cloudflare Worker 提供。",
+ "note": "五行夢回鏡上線版：素材為加密圖集，由 Cloudflare Worker 提供。",
  "files": {
   "cards": "cards.json",
   "chr/初行客_m_idle": "art/chr_novice_m_idle.webp",
